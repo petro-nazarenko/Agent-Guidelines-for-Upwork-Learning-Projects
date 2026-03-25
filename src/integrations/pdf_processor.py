@@ -28,15 +28,15 @@ class PDFConfig(IntegrationConfig):
 class PDFMetadata:
     """PDF document metadata."""
 
-    title: str | None
-    author: str | None
-    subject: str | None
-    creator: str | None
-    producer: str | None
-    creation_date: str | None
-    modification_date: str | None
-    page_count: int
-    encrypted: bool
+    title: str | None = None
+    author: str | None = None
+    subject: str | None = None
+    creator: str | None = None
+    producer: str | None = None
+    creation_date: str | None = None
+    modification_date: str | None = None
+    page_count: int = 0
+    encrypted: bool = False
 
 
 @dataclass
@@ -146,10 +146,12 @@ class PDFProcessor(BaseIntegration):
             self._logger.info("Closed PDF")
 
     def __enter__(self) -> "PDFProcessor":
+        self.connect()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
+        self.disconnect()
 
     def get_metadata(self, path: str | Path | None = None) -> PDFMetadata:
         """Extract metadata from PDF.

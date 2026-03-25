@@ -139,7 +139,7 @@ class EmailClient(BaseIntegration):
     def connect_imap(self) -> None:
         """Connect to IMAP server."""
         try:
-            self._imap = IMAPClient(self._config.imap_host, port=self._config.imap_port)
+            self._imap = imapclient.IMAPClient(self._config.imap_host, port=self._config.imap_port)
             self._imap.start_tls()
 
             if self._config.imap_user and self._config.imap_password:
@@ -150,7 +150,7 @@ class EmailClient(BaseIntegration):
                 host=self._config.imap_host,
                 port=self._config.imap_port,
             )
-        except imapclient.IMAPClient.Error as e:
+        except Exception as e:
             raise AuthenticationError(f"IMAP authentication failed: {e}") from e
         except socket.gaierror as e:
             raise ConnectionError(f"IMAP connection failed: {e}") from e
@@ -179,7 +179,10 @@ class EmailClient(BaseIntegration):
 
         try:
             msg = self._build_message(email_msg)
-            result = self._smtp!.send_message(
+            if not self._smtp:
+                raise ConnectionError("SMTP connection is not established")
+
+            _ = self._smtp.send_message(
                 msg,
                 to_addrs=email_msg.to,
                 mail_options=[],
@@ -190,7 +193,7 @@ class EmailClient(BaseIntegration):
                 to=email_msg.to,
                 subject=email_msg.subject,
             )
-            return result if result else {"status": "sent"}
+            return {"status": "sent"}
         except smtplib.SMTPException as e:
             self._logger.error("Failed to send email", error=str(e))
             raise

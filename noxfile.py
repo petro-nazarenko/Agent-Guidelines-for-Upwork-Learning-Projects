@@ -20,7 +20,6 @@ Sessions:
     all         - Run all quality checks (lint, typecheck, test, spell)
 """
 
-import os
 import shutil
 from pathlib import Path
 
