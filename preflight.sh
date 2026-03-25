@@ -7,6 +7,11 @@
 set -eo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+if [ -f .claude/settings.json.bak ] && [ ! -f .claude/settings.json ]; then
+  mv .claude/settings.json.bak .claude/settings.json
+  echo 'WARNING: settings.json restored from backup'
+fi
+
 # Флаги пропуска отдельных шагов:
 #   SKIP_PREFLIGHT=1  — пропустить всё
 #   SKIP_LINT=1       — пропустить ruff
