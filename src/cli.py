@@ -1,15 +1,15 @@
 """CLI entry point using Typer."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from src import __version__
+from src.integrations.email_handler import Email, EmailClient, EmailConfig
 from src.integrations.google_sheets import GoogleSheetsClient, GoogleSheetsConfig
 from src.integrations.pdf_processor import PDFProcessor
-from src.integrations.email_handler import EmailClient, EmailConfig, Email
 from src.utils.logger import get_logger
 
 app = typer.Typer(
@@ -54,7 +54,7 @@ def sheets_read(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -77,16 +77,16 @@ def sheets_write(
         data = json.loads(values)
 
         with client:
-            result = client.write_range(range_name, data)
+            client.write_range(range_name, data)
 
         console.print(f"[green]Successfully wrote {len(data)} rows[/green]")
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         console.print("[bold red]Error:[/bold red] Invalid JSON format for values")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -115,7 +115,7 @@ def sheets_list(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -149,7 +149,7 @@ def pdf_extract_text(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -178,7 +178,7 @@ def pdf_extract_tables(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -202,13 +202,13 @@ def pdf_extract_invoice(
 
         console.print(table)
 
-        if "line_items" in data and data["line_items"]:
+        if data.get("line_items"):
             console.print("\n[bold]Line Items:[/bold]")
             console.print_json(data=data["line_items"])
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -234,13 +234,13 @@ def email_send(
         )
 
         with client:
-            result = client.send_email(email_msg)
+            client.send_email(email_msg)
 
         console.print("[green]Email sent successfully![/green]")
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @app.command()
@@ -279,7 +279,7 @@ def email_fetch(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 def main() -> None:

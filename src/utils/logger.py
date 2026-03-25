@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from typing import Optional
 
 import structlog
 
@@ -10,7 +9,7 @@ DEFAULT_LOG_LEVEL = logging.INFO
 
 
 def get_logger(
-    name: Optional[str] = None,
+    name: str | None = None,
     log_level: int = DEFAULT_LOG_LEVEL,
 ) -> structlog.stdlib.BoundLogger:
     """Get a structured logger instance.

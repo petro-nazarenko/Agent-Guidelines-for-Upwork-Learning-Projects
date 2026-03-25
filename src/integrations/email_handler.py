@@ -12,13 +12,17 @@ import socket
 from dataclasses import dataclass, field
 from datetime import datetime
 from email.message import Message
-from pathlib import Path
 from typing import Any, Protocol
 
 import imapclient
 from imapclient import IMAPClient
 
-from src.integrations.base import AuthenticationError, BaseIntegration, ConnectionError, IntegrationConfig
+from src.integrations.base import (
+    AuthenticationError,
+    BaseIntegration,
+    ConnectionError,
+    IntegrationConfig,
+)
 from src.utils.logger import get_logger
 from src.utils.retry import with_retry
 

@@ -90,7 +90,10 @@ def docs_serve(session: nox.Session) -> None:
 @nox.session(python=DEFAULT_PYTHON)
 def security(session: nox.Session) -> None:
     """Run gitleaks for secret scanning."""
-    session.install("gitleaks")
+    if shutil.which("gitleaks") is None:
+        session.error(
+            "gitleaks binary is not installed. Install it from https://github.com/gitleaks/gitleaks/releases or via your system package manager."
+        )
     session.run("gitleaks", "detect", "--source", ".", "--config", ".gitleaks.toml", "-v")
 
 
@@ -113,7 +116,7 @@ def spell(session: nox.Session) -> None:
 @nox.session(python=DEFAULT_PYTHON)
 def all_checks(session: nox.Session) -> None:
     """Run all quality checks: lint, typecheck, test, spell."""
-    session.install(".[dev]", "ruff", "codespell", "gitleaks")
+    session.install(".[dev]", "ruff", "codespell")
 
     print("\n" + "=" * 60)
     print("Running all quality checks...")

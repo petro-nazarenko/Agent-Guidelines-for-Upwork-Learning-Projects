@@ -1,6 +1,6 @@
 """Integration modules for external services."""
 
-from src.integrations.base import BaseIntegration, RateLimitError, IntegrationError
+from src.integrations.base import BaseIntegration, IntegrationError, RateLimitError
 
 __all__ = [
     "BaseIntegration",

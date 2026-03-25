@@ -2,7 +2,6 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,7 +20,7 @@ class GoogleSheetsSettings(BaseSettings):
         default=Path("config/credentials.json"),
         description="Path to Google service account credentials JSON",
     )
-    spreadsheet_id: Optional[str] = Field(
+    spreadsheet_id: str | None = Field(
         default=None,
         description="Default spreadsheet ID to use",
     )
@@ -39,13 +38,13 @@ class EmailSettings(BaseSettings):
 
     smtp_host: str = Field(default="smtp.gmail.com")
     smtp_port: int = Field(default=587)
-    smtp_user: Optional[str] = Field(default=None)
-    smtp_password: Optional[str] = Field(default=None)
+    smtp_user: str | None = Field(default=None)
+    smtp_password: str | None = Field(default=None)
 
     imap_host: str = Field(default="imap.gmail.com")
     imap_port: int = Field(default=993)
-    imap_user: Optional[str] = Field(default=None)
-    imap_password: Optional[str] = Field(default=None)
+    imap_user: str | None = Field(default=None)
+    imap_password: str | None = Field(default=None)
 
     @field_validator("smtp_port", "imap_port")
     @classmethod
@@ -65,9 +64,9 @@ class APIKeySettings(BaseSettings):
         case_sensitive=False,
     )
 
-    bol_com_api_key: Optional[str] = Field(default=None)
-    bol_com_client_id: Optional[str] = Field(default=None)
-    bol_com_client_secret: Optional[str] = Field(default=None)
+    bol_com_api_key: str | None = Field(default=None)
+    bol_com_client_id: str | None = Field(default=None)
+    bol_com_client_secret: str | None = Field(default=None)
 
 
 class AppSettings(BaseSettings):

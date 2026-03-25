@@ -1,14 +1,14 @@
 """Base integration classes and common patterns."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, TypeVar
 
 import tenacity
 from tenacity import (
     RetryCallState,
     stop_after_attempt,
-    wait_exponential,
 )
 
 from src.utils.logger import get_logger

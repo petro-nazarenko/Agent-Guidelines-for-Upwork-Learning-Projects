@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import gspread
 from gspread import Spreadsheet, Worksheet
@@ -63,7 +62,7 @@ class GoogleSheetsClient(BaseIntegration):
     Supports batch operations and caching for improved performance.
     """
 
-    SCOPES = [
+    SCOPES: ClassVar[list[str]] = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive.readonly",
     ]
