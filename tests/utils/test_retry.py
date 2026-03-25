@@ -1,8 +1,12 @@
 """Tests for retry utilities."""
 
+import concurrent.futures
+import threading
+import time
+
 import pytest
 
-from src.utils.retry import with_retry
+from src.utils.retry import with_retry, with_timeout
 
 
 class TestWithRetry:
@@ -71,3 +75,51 @@ class TestWithRetry:
             mixed_failures()
 
         assert call_count == 1
+
+
+class TestWithTimeout:
+    """Tests for timeout decorator."""
+
+    def test_function_completes_within_timeout(self) -> None:
+        """Test that function completes normally when within timeout."""
+        @with_timeout(seconds=5.0)
+        def fast_func() -> str:
+            return "done"
+
+        result = fast_func()
+        assert result == "done"
+
+    def test_function_raises_on_timeout(self) -> None:
+        """Test that TimeoutError is raised when function exceeds timeout."""
+        @with_timeout(seconds=0.1)
+        def slow_func() -> str:
+            time.sleep(10)
+            return "never"
+
+        with pytest.raises(concurrent.futures.TimeoutError):
+            slow_func()
+
+    def test_works_in_thread(self) -> None:
+        """Test that with_timeout works correctly when called from a thread."""
+        results: list[str] = []
+
+        @with_timeout(seconds=5.0)
+        def threaded_func() -> str:
+            return "thread_result"
+
+        def run_in_thread() -> None:
+            results.append(threaded_func())
+
+        t = threading.Thread(target=run_in_thread)
+        t.start()
+        t.join(timeout=10)
+
+        assert results == ["thread_result"]
+
+    def test_preserves_function_name(self) -> None:
+        """Test that decorator preserves the wrapped function name."""
+        @with_timeout(seconds=5.0)
+        def my_named_func() -> None:
+            pass
+
+        assert my_named_func.__name__ == "my_named_func"

@@ -1,5 +1,6 @@
 """CLI entry point using Typer."""
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -36,7 +37,7 @@ def sheets_read(
     """Read data from Google Sheets."""
     try:
         config = GoogleSheetsConfig(
-            credentials_path=credentials_path if credentials_path else "config/credentials.json",
+            credentials_path=Path(credentials_path or 'config/credentials.json'),
             spreadsheet_id=spreadsheet_id,
         )
         client = GoogleSheetsClient(config=config)
@@ -69,7 +70,7 @@ def sheets_write(
 
     try:
         config = GoogleSheetsConfig(
-            credentials_path=credentials_path if credentials_path else "config/credentials.json",
+            credentials_path=Path(credentials_path or 'config/credentials.json'),
             spreadsheet_id=spreadsheet_id,
         )
         client = GoogleSheetsClient(config=config)
@@ -97,7 +98,7 @@ def sheets_list(
     """List worksheets in a spreadsheet."""
     try:
         config = GoogleSheetsConfig(
-            credentials_path=credentials_path if credentials_path else "config/credentials.json",
+            credentials_path=Path(credentials_path or 'config/credentials.json'),
             spreadsheet_id=spreadsheet_id,
         )
         client = GoogleSheetsClient(config=config)

@@ -21,7 +21,7 @@ class TestGoogleSheetsConfig:
         assert config.max_retries == 3
         assert config.timeout == 30.0
         assert config.rate_limit_delay == 1.0
-        assert config.credentials_path == Path("config/credentials.json")
+        assert config.credentials_path == Path.home() / '.config' / 'upwork-learn' / 'credentials.json'
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -78,10 +78,11 @@ class TestGoogleSheetsClient:
         assert client._client is None
 
     @patch("src.integrations.google_sheets.gspread")
-    def test_connect_success(self, mock_gspread: MagicMock, client: GoogleSheetsClient) -> None:
+    @patch("src.integrations.google_sheets.Credentials")
+    def test_connect_success(self, mock_credentials: MagicMock, mock_gspread: MagicMock, client: GoogleSheetsClient) -> None:
         """Test successful connection."""
         mock_creds = MagicMock()
-        mock_gspread.Credentials.from_service_account_file.return_value = mock_creds
+        mock_credentials.from_service_account_file.return_value = mock_creds
         mock_gspread.authorize.return_value = MagicMock()
 
         client.connect()
@@ -105,9 +106,10 @@ class TestGoogleSheetsClient:
     def test_context_manager(self, config: GoogleSheetsConfig) -> None:
         """Test context manager usage."""
         with patch("src.integrations.google_sheets.gspread"):
-            client = GoogleSheetsClient(config=config)
-            with client:
-                pass
+            with patch("src.integrations.google_sheets.Credentials"):
+                client = GoogleSheetsClient(config=config)
+                with client:
+                    pass
 
     @patch("src.integrations.google_sheets.gspread")
     def test_read_range(self, mock_gspread: MagicMock, client: GoogleSheetsClient) -> None:

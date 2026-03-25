@@ -34,7 +34,7 @@ class AuthenticationError(IntegrationError):
     """Raised when authentication fails."""
 
 
-class ConnectionError(IntegrationError):
+class IntegrationConnectionError(IntegrationError):
     """Raised when connection fails."""
 
 

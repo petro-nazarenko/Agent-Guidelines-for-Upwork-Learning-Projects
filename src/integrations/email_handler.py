@@ -7,6 +7,7 @@ import email.encoders
 import email.mime.base
 import email.mime.multipart
 import email.mime.text
+import email.utils
 import smtplib
 import socket
 from dataclasses import dataclass, field
@@ -20,8 +21,8 @@ from imapclient import IMAPClient
 from src.integrations.base import (
     AuthenticationError,
     BaseIntegration,
-    ConnectionError,
     IntegrationConfig,
+    IntegrationConnectionError,
 )
 from src.utils.logger import get_logger
 from src.utils.retry import with_retry
@@ -87,6 +88,8 @@ class EmailClient(BaseIntegration):
     Includes support for HTML emails, attachments, and templating.
     """
 
+    _config: EmailConfig
+
     def __init__(self, config: EmailConfig | None = None) -> None:
         super().__init__(config)
         self._config = config or EmailConfig()
@@ -100,7 +103,11 @@ class EmailClient(BaseIntegration):
     def connect(self) -> None:
         """Establish connections to SMTP and IMAP servers."""
         self.connect_smtp()
-        self.connect_imap()
+        try:
+            self.connect_imap()
+        except Exception:
+            self.disconnect_smtp()
+            raise
         self._connected = True
         self._logger.info("Connected to email servers")
 
@@ -129,7 +136,7 @@ class EmailClient(BaseIntegration):
         except smtplib.SMTPAuthenticationError as e:
             raise AuthenticationError(f"SMTP authentication failed: {e}") from e
         except smtplib.SMTPException as e:
-            raise ConnectionError(f"SMTP connection failed: {e}") from e
+            raise IntegrationConnectionError(f"SMTP connection failed: {e}") from e
 
     def disconnect_smtp(self) -> None:
         """Disconnect from SMTP server."""
@@ -154,10 +161,12 @@ class EmailClient(BaseIntegration):
                 host=self._config.imap_host,
                 port=self._config.imap_port,
             )
-        except Exception as e:
+        except imapclient.LoginError as e:
             raise AuthenticationError(f"IMAP authentication failed: {e}") from e
         except socket.gaierror as e:
-            raise ConnectionError(f"IMAP connection failed: {e}") from e
+            raise IntegrationConnectionError(f"IMAP connection failed: {e}") from e
+        except Exception as e:
+            raise IntegrationConnectionError(f"IMAP connection failed: {e}") from e
 
     def disconnect_imap(self) -> None:
         """Disconnect from IMAP server."""
@@ -275,6 +284,7 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
+        assert self._imap is not None
 
         try:
             self._imap.select_folder(folder, readonly=False)
@@ -324,6 +334,7 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
+        assert self._imap is not None
 
         try:
             self._imap.select_folder(folder)
@@ -342,6 +353,7 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
+        assert self._imap is not None
 
         try:
             self._imap.select_folder(folder)
@@ -360,6 +372,7 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
+        assert self._imap is not None
 
         try:
             self._imap.select_folder(folder)
@@ -401,18 +414,15 @@ class EmailClient(BaseIntegration):
                         })
 
                 elif content_type == "text/plain" and not content_disposition:
-                    body = part.get_payload(decode=True)
-                    if isinstance(body, bytes):
-                        body = body.decode("utf-8", errors="replace")
+                    raw = part.get_payload(decode=True)
+                    body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
 
                 elif content_type == "text/html" and not content_disposition:
-                    html_body = part.get_payload(decode=True)
-                    if isinstance(html_body, bytes):
-                        html_body = html_body.decode("utf-8", errors="replace")
+                    raw_html = part.get_payload(decode=True)
+                    html_body = raw_html.decode("utf-8", errors="replace") if isinstance(raw_html, bytes) else str(raw_html or "")
         else:
-            body = msg.get_payload(decode=True)
-            if isinstance(body, bytes):
-                body = body.decode("utf-8", errors="replace")
+            raw = msg.get_payload(decode=True)
+            body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
 
         return ReceivedEmail(
             uid=uid,
@@ -433,6 +443,7 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
+        assert self._imap is not None
 
         folders = self._imap.list_folders()
         return [f[2] for f in folders]

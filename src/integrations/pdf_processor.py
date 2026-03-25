@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -66,7 +65,7 @@ class TableData:
             })
         return result
 
-    def to_csv_rows(self) -> Iterator[str]:
+    def to_csv_rows(self) -> list[str]:
         """Generate CSV rows."""
         import csv
         import io
@@ -75,7 +74,7 @@ class TableData:
         writer = csv.writer(output)
         for row in self.rows:
             writer.writerow(row)
-        return io.StringIO(output.getvalue())
+        return output.getvalue().splitlines()
 
 
 class PDFProcessor(BaseIntegration):
@@ -84,6 +83,8 @@ class PDFProcessor(BaseIntegration):
     Provides methods for extracting text, tables, and metadata from PDFs.
     Supports multi-page documents and table detection.
     """
+
+    _config: PDFConfig
 
     def __init__(self, config: PDFConfig | None = None) -> None:
         super().__init__(config)
@@ -174,7 +175,7 @@ class PDFProcessor(BaseIntegration):
             creation_date=metadata.get("CreationDate"),
             modification_date=metadata.get("ModDate"),
             page_count=len(pdf.pages),
-            encrypted=pdf.is_encrypted,
+            encrypted=bool(metadata.get('/Encrypt') or metadata.get('Encrypt')),
         )
 
     def extract_text(
