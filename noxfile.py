@@ -27,8 +27,47 @@ import nox
 
 PYTHON_VERSIONS = ["3.11", "3.12"]
 DEFAULT_PYTHON = "3.12"
+SOURCE_PATHS = ("src/", "tests/")
+SPELL_PATHS = ("src/", "tests/", "docs/", "examples/")
+SPELL_SKIP = "*.pyc,*.svg,*.lock,.venv,venv,dist,build,htmlcov,.mypy_cache"
+SPELL_IGNORE = "crate,nd,te,als,ot,ro,hist,ser"
 
 nox.options.sessions = ["all"]
+
+
+def install_dev_tools(session: nox.Session) -> None:
+    """Install shared development dependencies for validation sessions."""
+    session.install(".[dev]", "ruff", "codespell")
+
+
+def run_spellcheck(session: nox.Session) -> None:
+    """Run codespell with the repository defaults."""
+    session.run(
+        "codespell",
+        f"--ignore-words-list={SPELL_IGNORE}",
+        f"--skip={SPELL_SKIP}",
+        *SPELL_PATHS,
+    )
+
+
+def run_lint(session: nox.Session) -> None:
+    """Run Ruff lint checks."""
+    session.run("ruff", "check", *SOURCE_PATHS)
+
+
+def run_format_check(session: nox.Session) -> None:
+    """Run Ruff format in check mode."""
+    session.run("ruff", "format", "--check", *SOURCE_PATHS)
+
+
+def run_typecheck(session: nox.Session) -> None:
+    """Run mypy checks."""
+    session.run("mypy", "src/")
+
+
+def run_tests(session: nox.Session) -> None:
+    """Run pytest with coverage settings used in CI."""
+    session.run("pytest", "--cov=src", "--cov-report=xml", "tests/")
 
 
 @nox.session(python=PYTHON_VERSIONS)
@@ -56,14 +95,21 @@ def test_fast(session: nox.Session) -> None:
 def lint(session: nox.Session) -> None:
     """Run ruff check for linting."""
     session.install("ruff")
-    session.run("ruff", "check", "src/", "tests/", *session.posargs)
+    session.run("ruff", "check", *SOURCE_PATHS, *session.posargs)
 
 
 @nox.session(python=DEFAULT_PYTHON)
 def format_code(session: nox.Session) -> None:
     """Format code with ruff."""
     session.install("ruff")
-    session.run("ruff", "format", "src/", "tests/", *session.posargs)
+    session.run("ruff", "format", *SOURCE_PATHS, *session.posargs)
+
+
+@nox.session(python=DEFAULT_PYTHON)
+def format_check(session: nox.Session) -> None:
+    """Check code formatting with ruff."""
+    session.install("ruff")
+    session.run("ruff", "format", "--check", *SOURCE_PATHS, *session.posargs)
 
 
 @nox.session(python=DEFAULT_PYTHON)
@@ -103,20 +149,17 @@ def spell(session: nox.Session) -> None:
     session.install("codespell")
     session.run(
         "codespell",
-        "--ignore-words-list=crate,nd,te,als,ot,ro,hist,ser",
-        "--skip=*.pyc,*.svg,*.lock,.venv,venv,dist,build,htmlcov,.mypy_cache",
-        "src/",
-        "tests/",
-        "docs/",
-        "examples/",
+        f"--ignore-words-list={SPELL_IGNORE}",
+        f"--skip={SPELL_SKIP}",
+        *SPELL_PATHS,
         *session.posargs,
     )
 
 
 @nox.session(python=DEFAULT_PYTHON)
 def all_checks(session: nox.Session) -> None:
-    """Run all quality checks: lint, typecheck, test, spell."""
-    session.install(".[dev]", "ruff", "codespell")
+    """Run the full local validation pipeline."""
+    install_dev_tools(session)
 
     print("\n" + "=" * 60)
     print("Running all quality checks...")
@@ -124,27 +167,19 @@ def all_checks(session: nox.Session) -> None:
 
     # 1. Spell check
     print("\n[1/5] Running codespell...")
-    session.run(
-        "codespell",
-        "--ignore-words-list=crate,nd,te,als,ot,ro,hist,ser",
-        "--skip=*.pyc,*.svg,*.lock,.venv,venv,dist,build,htmlcov,.mypy_cache",
-        "src/",
-        "tests/",
-        "docs/",
-        "examples/",
-    )
+    run_spellcheck(session)
 
     # 2. Lint
     print("\n[2/5] Running ruff check...")
-    session.run("ruff", "check", "src/", "tests/")
+    run_lint(session)
 
     # 3. Format check
     print("\n[3/5] Checking code format...")
-    session.run("ruff", "format", "--check", "src/", "tests/")
+    run_format_check(session)
 
     # 4. Type check
     print("\n[4/5] Running mypy type check...")
-    session.run("mypy", "src/")
+    run_typecheck(session)
 
     # 5. Test
     print("\n[5/5] Running pytest...")
@@ -216,8 +251,8 @@ def install_hooks(session: nox.Session) -> None:
 
 @nox.session(python=DEFAULT_PYTHON)
 def ci(session: nox.Session) -> None:
-    """Run CI pipeline (same as GitHub Actions)."""
-    session.install(".[dev]", "ruff", "codespell")
+    """Run the same validation pipeline used by GitHub Actions."""
+    install_dev_tools(session)
 
     print("\n" + "=" * 60)
     print("Running CI pipeline...")
@@ -225,19 +260,19 @@ def ci(session: nox.Session) -> None:
 
     # Lint
     print("\n[1/4] Linting...")
-    session.run("ruff", "check", "src/", "tests/")
+    run_lint(session)
 
     # Format
     print("\n[2/4] Checking format...")
-    session.run("ruff", "format", "--check", "src/", "tests/")
+    run_format_check(session)
 
     # Type check
     print("\n[3/4] Type checking...")
-    session.run("mypy", "src/")
+    run_typecheck(session)
 
     # Test
     print("\n[4/4] Testing...")
-    session.run("pytest", "--cov=src", "tests/")
+    run_tests(session)
 
     print("\n" + "=" * 60)
     print("CI pipeline passed!")
