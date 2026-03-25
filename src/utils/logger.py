@@ -12,7 +12,7 @@ DEFAULT_LOG_LEVEL = logging.INFO
 def get_logger(
     name: str | None = None,
     log_level: int = DEFAULT_LOG_LEVEL,
-) -> structlog.types.BindableLogger:
+) -> structlog.stdlib.BoundLogger:
     """Get a structured logger instance.
 
     Args:
@@ -25,7 +25,7 @@ def get_logger(
     configure_logging(log_level)
 
     logger = structlog.get_logger(name)
-    return cast(structlog.types.BindableLogger, logger)
+    return cast(structlog.stdlib.BoundLogger, logger)
 
 
 def configure_logging(log_level: int = DEFAULT_LOG_LEVEL) -> None:
