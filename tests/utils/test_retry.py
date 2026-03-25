@@ -1,5 +1,6 @@
 """Tests for retry utilities."""
 
+import concurrent.futures
 import threading
 import time
 
@@ -95,7 +96,7 @@ class TestWithTimeout:
             time.sleep(10)
             return "never"
 
-        with pytest.raises(Exception):
+        with pytest.raises(concurrent.futures.TimeoutError):
             slow_func()
 
     def test_works_in_thread(self) -> None:

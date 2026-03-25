@@ -7,15 +7,15 @@ from pathlib import Path
 from typing import Any, ClassVar, cast
 
 import gspread
+from google.oauth2.service_account import Credentials
 from gspread import Spreadsheet, Worksheet
 from gspread.exceptions import SpreadsheetNotFound
-from google.oauth2.service_account import Credentials
 
 from src.integrations.base import (
     AuthenticationError,
     BaseIntegration,
-    IntegrationConnectionError,
     IntegrationConfig,
+    IntegrationConnectionError,
 )
 from src.utils.logger import get_logger
 from src.utils.retry import with_retry

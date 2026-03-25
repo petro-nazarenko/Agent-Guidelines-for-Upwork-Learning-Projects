@@ -21,8 +21,8 @@ from imapclient import IMAPClient
 from src.integrations.base import (
     AuthenticationError,
     BaseIntegration,
-    IntegrationConnectionError,
     IntegrationConfig,
+    IntegrationConnectionError,
 )
 from src.utils.logger import get_logger
 from src.utils.retry import with_retry
