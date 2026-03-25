@@ -5,6 +5,12 @@
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+# Быстрый выход без проверок: SKIP_PREFLIGHT=1 claude
+if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
+    echo '{"systemMessage": "⚡ Preflight skipped (SKIP_PREFLIGHT=1)"}'
+    exit 0
+fi
+
 OUTPUT=$(bash preflight.sh 2>&1)
 CODE=$?
 

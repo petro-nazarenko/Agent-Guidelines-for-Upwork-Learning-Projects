@@ -7,6 +7,16 @@
 set -eo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
+# Флаги пропуска отдельных шагов:
+#   SKIP_PREFLIGHT=1  — пропустить всё
+#   SKIP_LINT=1       — пропустить ruff
+#   SKIP_MYPY=1       — пропустить mypy
+#   SKIP_TESTS=1      — пропустить pytest
+if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
+    echo "⚡ Preflight skipped (SKIP_PREFLIGHT=1)"
+    exit 0
+fi
+
 FAILED=0
 MYPY_FAILED=0
 
@@ -20,30 +30,42 @@ soft() { echo -e "${YELLOW}⚠ $1 (soft — не блокирует)${RESET}"; }
 section() { echo -e "\n${BLUE}${BOLD}── $1 ──${RESET}"; }
 
 # ── 1. lint (ruff) ─────────────────────────────────────────────────────────────
-section "lint  ruff"
-if python3 -m ruff check src/ tests/; then
-    pass "ruff: нарушений нет"
+if [ "${SKIP_LINT:-0}" != "1" ]; then
+    section "lint  ruff"
+    if python3 -m ruff check src/ tests/; then
+        pass "ruff: нарушений нет"
+    else
+        fail "ruff: есть нарушения"
+        FAILED=1
+    fi
 else
-    fail "ruff: есть нарушения"
-    FAILED=1
+    echo -e "${YELLOW}⚡ lint skipped (SKIP_LINT=1)${RESET}"
 fi
 
 # ── 2. typecheck (mypy) — МЯГКИЙ ──────────────────────────────────────────────
-section "typecheck  mypy  (soft)"
-if python3 -m mypy src/ 2>&1; then
-    pass "mypy: ошибок нет"
+if [ "${SKIP_MYPY:-0}" != "1" ]; then
+    section "typecheck  mypy  (soft)"
+    if python3 -m mypy src/ 2>&1; then
+        pass "mypy: ошибок нет"
+    else
+        soft "mypy: есть ошибки типов (не блокирует)"
+        MYPY_FAILED=1
+    fi
 else
-    soft "mypy: есть ошибки типов (не блокирует)"
-    MYPY_FAILED=1
+    echo -e "${YELLOW}⚡ mypy skipped (SKIP_MYPY=1)${RESET}"
 fi
 
 # ── 3. tests (pytest) ──────────────────────────────────────────────────────────
-section "tests  pytest"
-if python3 -m pytest -q; then
-    pass "pytest: все тесты зелёные"
+if [ "${SKIP_TESTS:-0}" != "1" ]; then
+    section "tests  pytest"
+    if python3 -m pytest -q; then
+        pass "pytest: все тесты зелёные"
+    else
+        fail "pytest: есть упавшие тесты"
+        FAILED=1
+    fi
 else
-    fail "pytest: есть упавшие тесты"
-    FAILED=1
+    echo -e "${YELLOW}⚡ tests skipped (SKIP_TESTS=1)${RESET}"
 fi
 
 # ── итог ───────────────────────────────────────────────────────────────────────
