@@ -65,7 +65,7 @@ jobs:
         run: uv venv
 
       - name: Install docs dependencies
-        run: uv pip install mkdocs-material mike
+        run: uv pip install --python .venv/bin/python mkdocs-material mike
 
       - name: Deploy documentation
-        run: mkdocs gh-deploy --force
+        run: uv run mkdocs gh-deploy --force
