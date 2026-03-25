@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import gspread
 from gspread import Spreadsheet, Worksheet
 from gspread.exceptions import SpreadsheetNotFound
+from google.oauth2.service_account import Credentials
 
 from src.integrations.base import (
     AuthenticationError,
     BaseIntegration,
-    ConnectionError,
+    IntegrationConnectionError,
     IntegrationConfig,
 )
 from src.utils.logger import get_logger
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 class GoogleSheetsConfig(IntegrationConfig):
     """Configuration for Google Sheets integration."""
 
-    credentials_path: Path = Path("config/credentials.json")
+    credentials_path: Path = field(default_factory=lambda: Path.home() / '.config' / 'upwork-learn' / 'credentials.json')
     spreadsheet_id: str | None = None
 
 
@@ -62,6 +63,7 @@ class GoogleSheetsClient(BaseIntegration):
     Supports batch operations and caching for improved performance.
     """
 
+    _config: GoogleSheetsConfig
     SCOPES: ClassVar[list[str]] = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive.readonly",
@@ -93,7 +95,7 @@ class GoogleSheetsClient(BaseIntegration):
         except FileNotFoundError as e:
             raise AuthenticationError(f"Credentials file not found: {e}") from e
         except Exception as e:
-            raise ConnectionError(f"Failed to connect: {e}") from e
+            raise IntegrationConnectionError(f"Failed to connect: {e}") from e
 
     def disconnect(self) -> None:
         """Close the connection."""
@@ -111,8 +113,8 @@ class GoogleSheetsClient(BaseIntegration):
                 "Credentials file not found, continuing in test/mock mode",
                 path=str(cred_path),
             )
-        return gspread.Credentials.from_service_account_file(
-            cred_path,
+        return Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
+            str(cred_path),
             scopes=self.SCOPES,
         )
 
@@ -137,7 +139,7 @@ class GoogleSheetsClient(BaseIntegration):
                 self.connect()
 
             if not self._client:
-                raise ConnectionError("Google Sheets client is not initialized")
+                raise IntegrationConnectionError("Google Sheets client is not initialized")
 
             self._spreadsheet = self._client.open_by_key(spreadsheet_id)
             self._spreadsheet_id = spreadsheet_id
@@ -181,7 +183,7 @@ class GoogleSheetsClient(BaseIntegration):
                 range=range_name,
                 rows=len(result),
             )
-            return result
+            return cast(list[list[str | int | float]], result)
         except Exception as e:
             self._logger.error("Failed to read range", range=range_name, error=str(e))
             raise
@@ -226,7 +228,7 @@ class GoogleSheetsClient(BaseIntegration):
                 range=range_name,
                 rows=len(values),
             )
-            return result
+            return cast(dict[str, Any], result)
         except Exception as e:
             self._logger.error("Failed to write range", range=range_name, error=str(e))
             raise
@@ -256,7 +258,7 @@ class GoogleSheetsClient(BaseIntegration):
                 sheet=sheet_name,
                 values=values[:3],
             )
-            return result
+            return dict(result)
         except Exception as e:
             self._logger.error("Failed to append row", sheet=sheet_name, error=str(e))
             raise
@@ -291,7 +293,7 @@ class GoogleSheetsClient(BaseIntegration):
                 cell=cell,
                 value=value,
             )
-            return result
+            return dict(result)
         except Exception as e:
             self._logger.error("Failed to update cell", cell=f"{row}:{col}", error=str(e))
             raise
@@ -319,7 +321,7 @@ class GoogleSheetsClient(BaseIntegration):
                 "Batch write",
                 ranges=len(data),
             )
-            return result
+            return cast(dict[str, Any], result)
         except Exception as e:
             self._logger.error("Batch write failed", error=str(e))
             raise

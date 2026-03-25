@@ -1,5 +1,6 @@
 """Retry utilities and decorators."""
 
+import concurrent.futures
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
@@ -65,17 +66,8 @@ def with_timeout(seconds: float) -> Callable[[Callable[..., T]], Callable[..., T
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            import signal
-
-            def timeout_handler(signum: int, frame: Any) -> None:
-                raise TimeoutError(f"Function {func.__name__} timed out after {seconds}s")
-
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(seconds))
-            try:
-                return func(*args, **kwargs)
-            finally:
-                signal.alarm(0)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                return ex.submit(func, *args, **kwargs).result(timeout=seconds)
 
         return wrapper
 

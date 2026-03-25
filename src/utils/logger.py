@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from typing import cast
 
 import structlog
 
@@ -24,7 +25,7 @@ def get_logger(
     configure_logging(log_level)
 
     logger = structlog.get_logger(name)
-    return logger
+    return cast(structlog.stdlib.BoundLogger, logger)
 
 
 def configure_logging(log_level: int = DEFAULT_LOG_LEVEL) -> None:
