@@ -11,7 +11,7 @@ from src import __version__
 from src.integrations.email_handler import Email, EmailClient, EmailConfig
 from src.integrations.google_sheets import GoogleSheetsClient, GoogleSheetsConfig
 from src.integrations.pdf_processor import PDFProcessor
-from src.utils.logger import get_logger
+from src.utils.logger import bind_request_id, get_logger
 
 app = typer.Typer(
     name="upwork-learn",
@@ -334,6 +334,7 @@ def main() -> None:
 
     cfg = load_config()
     configure_logging(getattr(_logging, cfg.app.log_level, _logging.INFO))
+    bind_request_id()
     app()
 
 

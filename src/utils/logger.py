@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import uuid
 from typing import cast
 
 import structlog
@@ -82,3 +83,21 @@ def add_log_context(**kwargs: str) -> None:
     """
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(**kwargs)
+
+
+def bind_request_id(request_id: str | None = None) -> str:
+    """Bind a correlation / request ID to all log messages in the current context.
+
+    Call this at the start of each operation (CLI command, scheduled job, etc.)
+    so that all log lines produced during that operation share the same ID and
+    can be correlated in log aggregation tools.
+
+    Args:
+        request_id: Explicit ID to use. When ``None`` a random UUID4 is generated.
+
+    Returns:
+        The request ID that was bound.
+    """
+    rid = request_id or str(uuid.uuid4())
+    structlog.contextvars.bind_contextvars(request_id=rid)
+    return rid
