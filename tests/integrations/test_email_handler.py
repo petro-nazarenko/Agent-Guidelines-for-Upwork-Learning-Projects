@@ -13,9 +13,9 @@ from src.integrations.email_handler import (
     EmailConfig,
     ReceivedEmail,
 )
+
 # Never hard-code credentials — read from env so gitleaks stays quiet.
 _TEST_SECRET = SecretStr(os.environ.get("TEST_EMAIL_PASSWORD", "ci-placeholder"))
-
 
 
 class TestEmailConfig:
