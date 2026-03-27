@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 import tenacity
 from tenacity import RetryCallState
 
+from src.integrations.base import AuthenticationError
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -23,11 +24,15 @@ def with_retry(
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for retry with exponential backoff.
 
+    AuthenticationError is never retried regardless of the ``exceptions``
+    argument — retrying auth failures only adds latency before an inevitable
+    crash.
+
     Args:
         max_attempts: Maximum number of retry attempts
         initial_wait: Initial wait time in seconds
         max_wait: Maximum wait time in seconds
-        exceptions: Tuple of exceptions to catch
+        exceptions: Tuple of exceptions to catch and retry
 
     Returns:
         Decorated function with retry logic
@@ -44,12 +49,15 @@ def with_retry(
             exception=str(exception) if exception else None,
         )
 
+    def should_retry(exc: BaseException) -> bool:
+        return isinstance(exc, exceptions) and not isinstance(exc, AuthenticationError)
+
     return tenacity.retry(
         stop=tenacity.stop_after_attempt(max_attempts),
         wait=tenacity.wait_exponential(multiplier=initial_wait, max=max_wait),
         before_sleep=before_callback,
         reraise=True,
-        retry=tenacity.retry_if_exception_type(exceptions),
+        retry=tenacity.retry_if_exception(should_retry),
     )
 
 
