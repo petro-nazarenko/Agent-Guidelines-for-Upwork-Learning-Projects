@@ -17,12 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-[project.urls]
-Homepage = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects"
-Repository = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects"
-Issues = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects/issues"
-Changelog = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects/blob/main/CHANGELOG.md"
-
 dependencies = [
     "gspread>=6.0.0",
     "imapclient>=3.0.1",
@@ -61,6 +55,12 @@ security = [
 
 [project.scripts]
 upwork-learn = "src.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects"
+Repository = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects"
+Issues = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects/issues"
+Changelog = "https://github.com/petro-nazarenko/Agent-Guidelines-for-Upwork-Learning-Projects/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
