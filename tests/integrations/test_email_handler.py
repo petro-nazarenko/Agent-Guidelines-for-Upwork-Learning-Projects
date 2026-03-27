@@ -237,7 +237,7 @@ class TestEmailClient:
 
         client.delete_email(123)
 
-        mock_imap.move.assert_called_with(123, "[Gmail]/Trash")
+        mock_imap.move.assert_called_with(123, client._config.trash_folder)
 
     @patch("src.integrations.email_handler.imapclient.IMAPClient")
     def test_get_folders(self, mock_imap_class: MagicMock, client: EmailClient) -> None:

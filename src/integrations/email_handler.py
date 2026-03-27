@@ -51,6 +51,7 @@ class EmailConfig(IntegrationConfig):
     imap_port: int = 993
     imap_user: str | None = None
     imap_password: str | None = None
+    trash_folder: str = "[Gmail]/Trash"
 
 
 @dataclass
@@ -376,7 +377,7 @@ class EmailClient(BaseIntegration):
 
         try:
             self._imap.select_folder(folder)
-            self._imap.move(uid, "[Gmail]/Trash")
+            self._imap.move(uid, self._config.trash_folder)
             self._logger.debug("Deleted email", uid=uid)
         except Exception as e:
             self._logger.error("Failed to delete email", uid=uid, error=str(e))
