@@ -296,7 +296,7 @@ class EmailClient(BaseIntegration):
             raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
-            self._imap.select_folder(folder, readonly=False)
+            self._imap.select_folder(folder, readonly=True)
 
             search_criteria = ["ALL"]
             if unread_only:

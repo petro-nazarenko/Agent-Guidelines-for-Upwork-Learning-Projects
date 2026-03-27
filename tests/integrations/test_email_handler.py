@@ -221,7 +221,7 @@ class TestEmailClient:
         emails = client.fetch_emails(limit=10)
 
         assert len(emails) == 3
-        mock_imap.select_folder.assert_called_with("INBOX", readonly=False)
+        mock_imap.select_folder.assert_called_with("INBOX", readonly=True)
 
     @patch("src.integrations.email_handler.imapclient.IMAPClient")
     def test_mark_as_read(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
