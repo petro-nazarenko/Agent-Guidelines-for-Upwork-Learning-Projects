@@ -66,7 +66,8 @@ jobs:
         run: uv pip install -e ".[dev]" --python .venv/bin/python
 
       - name: Audit dependencies for known vulnerabilities
-        run: uv pip install pip-audit --python .venv/bin/python && .venv/bin/pip-audit
+        # CVE-2026-4539 (pygments): no patched release available yet; pinned to 2.19.2 in pyproject.toml
+        run: uv pip install pip-audit --python .venv/bin/python && .venv/bin/pip-audit --ignore-vuln CVE-2026-4539
 
   docs:
     name: Docs
