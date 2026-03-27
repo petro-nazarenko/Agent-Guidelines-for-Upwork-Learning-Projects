@@ -8,7 +8,6 @@ from typing import Any, TypeVar
 import tenacity
 from tenacity import RetryCallState
 
-from src.integrations.base import AuthenticationError
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -50,6 +49,8 @@ def with_retry(
         )
 
     def should_retry(exc: BaseException) -> bool:
+        # Lazy import avoids circular dependency (base.py → src.utils → retry.py → base.py)
+        from src.integrations.base import AuthenticationError  # noqa: PLC0415
         return isinstance(exc, exceptions) and not isinstance(exc, AuthenticationError)
 
     return tenacity.retry(
