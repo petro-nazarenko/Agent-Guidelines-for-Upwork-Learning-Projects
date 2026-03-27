@@ -35,10 +35,12 @@ class TestExceptionHierarchy:
 
     def test_authentication_error_is_integration_error(self) -> None:
         from src.integrations.base import IntegrationError
+
         assert issubclass(AuthenticationError, IntegrationError)
 
     def test_connection_error_is_integration_error(self) -> None:
         from src.integrations.base import IntegrationError
+
         assert issubclass(IntegrationConnectionError, IntegrationError)
 
 

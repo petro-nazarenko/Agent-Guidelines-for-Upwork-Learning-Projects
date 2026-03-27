@@ -188,7 +188,9 @@ class TestEmailClient:
         assert result.get("status") == "sent"
 
     @patch("src.integrations.email_handler.smtplib.SMTP")
-    def test_send_email_multiple_recipients(self, mock_smtp_class: MagicMock, client: EmailClient) -> None:
+    def test_send_email_multiple_recipients(
+        self, mock_smtp_class: MagicMock, client: EmailClient
+    ) -> None:
         """Test sending to multiple recipients."""
         mock_smtp = MagicMock()
         mock_smtp_class.return_value = mock_smtp
@@ -304,7 +306,9 @@ class TestEmailClient:
         assert result.get("status") == "sent"
 
     @patch("src.integrations.email_handler.imapclient.IMAPClient")
-    def test_fetch_emails_with_since_date(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
+    def test_fetch_emails_with_since_date(
+        self, mock_imap_class: MagicMock, client: EmailClient
+    ) -> None:
         """Test fetch_emails with since_date filter."""
         from datetime import datetime
 

@@ -30,7 +30,9 @@ logger = get_logger(__name__)
 class GoogleSheetsConfig(IntegrationConfig):
     """Configuration for Google Sheets integration."""
 
-    credentials_path: Path = field(default_factory=lambda: Path.home() / '.config' / 'upwork-learn' / 'credentials.json')
+    credentials_path: Path = field(
+        default_factory=lambda: Path.home() / ".config" / "upwork-learn" / "credentials.json"
+    )
     spreadsheet_id: str | None = None
 
 

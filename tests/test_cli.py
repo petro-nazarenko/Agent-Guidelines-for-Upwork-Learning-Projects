@@ -32,11 +32,16 @@ class TestSheetsReadCommand:
         mock_client.read_range.return_value = [["A1", "B1"], ["A2", "B2"]]
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-read",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1:B2",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-read",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1:B2",
+            ],
+        )
 
         assert result.exit_code == 0
         mock_client.read_range.assert_called_once_with("Sheet1!A1:B2")
@@ -50,12 +55,18 @@ class TestSheetsReadCommand:
         mock_client.read_range.return_value = []
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-read",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1:B2",
-            "--credentials", "/custom/creds.json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-read",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1:B2",
+                "--credentials",
+                "/custom/creds.json",
+            ],
+        )
 
         assert result.exit_code == 0
         call_kwargs = mock_client_class.call_args
@@ -71,11 +82,16 @@ class TestSheetsReadCommand:
         mock_client.read_range.side_effect = Exception("API error")
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-read",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1:B2",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-read",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1:B2",
+            ],
+        )
 
         assert result.exit_code == 1
 
@@ -91,12 +107,18 @@ class TestSheetsWriteCommand:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-write",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1:B2",
-            "--values", '[["A1", "B1"], ["A2", "B2"]]',
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-write",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1:B2",
+                "--values",
+                '[["A1", "B1"], ["A2", "B2"]]',
+            ],
+        )
 
         assert result.exit_code == 0
         mock_client.write_range.assert_called_once()
@@ -104,12 +126,18 @@ class TestSheetsWriteCommand:
     @patch("src.cli.GoogleSheetsClient")
     def test_sheets_write_invalid_json(self, mock_client_class: MagicMock) -> None:
         """Test sheets write with invalid JSON."""
-        result = runner.invoke(app, [
-            "sheets-write",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1:B2",
-            "--values", "not valid json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-write",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1:B2",
+                "--values",
+                "not valid json",
+            ],
+        )
 
         assert result.exit_code == 1
 
@@ -121,13 +149,20 @@ class TestSheetsWriteCommand:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-write",
-            "--spreadsheet-id", "test_id",
-            "--range", "Sheet1!A1",
-            "--values", '[["data"]]',
-            "--credentials", "/path/to/creds.json",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-write",
+                "--spreadsheet-id",
+                "test_id",
+                "--range",
+                "Sheet1!A1",
+                "--values",
+                '[["data"]]',
+                "--credentials",
+                "/path/to/creds.json",
+            ],
+        )
 
         assert result.exit_code == 0
         config = mock_client_class.call_args[1]["config"]
@@ -146,10 +181,14 @@ class TestSheetsListCommand:
         mock_client.get_worksheets.return_value = ["Sheet1", "Sheet2", "Sheet3"]
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-list",
-            "--spreadsheet-id", "test_id",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-list",
+                "--spreadsheet-id",
+                "test_id",
+            ],
+        )
 
         assert result.exit_code == 0
         mock_client.get_worksheets.assert_called_once()
@@ -163,10 +202,14 @@ class TestSheetsListCommand:
         mock_client.get_worksheets.side_effect = Exception("Connection error")
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "sheets-list",
-            "--spreadsheet-id", "test_id",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "sheets-list",
+                "--spreadsheet-id",
+                "test_id",
+            ],
+        )
 
         assert result.exit_code == 1
 
@@ -203,7 +246,9 @@ class TestPDFExtractTextCommand:
         mock_processor.extract_text.assert_called_once_with(path="test.pdf", page_numbers=[0, 1])
 
     @patch("src.cli.PDFProcessor")
-    def test_pdf_extract_text_to_file(self, mock_processor_class: MagicMock, tmp_path: Path) -> None:
+    def test_pdf_extract_text_to_file(
+        self, mock_processor_class: MagicMock, tmp_path: Path
+    ) -> None:
         """Test text extraction to output file."""
         mock_processor = MagicMock()
         mock_processor.__enter__ = MagicMock(return_value=mock_processor)
@@ -254,7 +299,9 @@ class TestPDFExtractTablesCommand:
         mock_processor.extract_tables.assert_called_once_with(path="test.pdf")
 
     @patch("src.cli.PDFProcessor")
-    def test_pdf_extract_tables_to_file(self, mock_processor_class: MagicMock, tmp_path: Path) -> None:
+    def test_pdf_extract_tables_to_file(
+        self, mock_processor_class: MagicMock, tmp_path: Path
+    ) -> None:
         """Test table extraction to output file."""
         from src.integrations.pdf_processor import TableData
 
@@ -336,12 +383,18 @@ class TestEmailSendCommand:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "email-send",
-            "--to", "recipient@example.com",
-            "--subject", "Test Subject",
-            "--body", "Test body",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "email-send",
+                "--to",
+                "recipient@example.com",
+                "--subject",
+                "Test Subject",
+                "--body",
+                "Test body",
+            ],
+        )
 
         assert result.exit_code == 0
         mock_client.send_email.assert_called_once()
@@ -354,13 +407,20 @@ class TestEmailSendCommand:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "email-send",
-            "--to", "recipient@example.com",
-            "--subject", "Test",
-            "--body", "Body",
-            "--cc", "cc@example.com",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "email-send",
+                "--to",
+                "recipient@example.com",
+                "--subject",
+                "Test",
+                "--body",
+                "Body",
+                "--cc",
+                "cc@example.com",
+            ],
+        )
 
         assert result.exit_code == 0
         email_arg = mock_client.send_email.call_args[0][0]
@@ -374,12 +434,18 @@ class TestEmailSendCommand:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "email-send",
-            "--to", "a@example.com,b@example.com",
-            "--subject", "Test",
-            "--body", "Body",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "email-send",
+                "--to",
+                "a@example.com,b@example.com",
+                "--subject",
+                "Test",
+                "--body",
+                "Body",
+            ],
+        )
 
         assert result.exit_code == 0
         email_arg = mock_client.send_email.call_args[0][0]
@@ -394,12 +460,18 @@ class TestEmailSendCommand:
         mock_client.send_email.side_effect = Exception("SMTP error")
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "email-send",
-            "--to", "recipient@example.com",
-            "--subject", "Test",
-            "--body", "Body",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "email-send",
+                "--to",
+                "recipient@example.com",
+                "--subject",
+                "Test",
+                "--body",
+                "Body",
+            ],
+        )
 
         assert result.exit_code == 1
 
@@ -443,12 +515,17 @@ class TestEmailFetchCommand:
         mock_client.fetch_emails.return_value = []
         mock_client_class.return_value = mock_client
 
-        result = runner.invoke(app, [
-            "email-fetch",
-            "--folder", "Sent",
-            "--limit", "5",
-            "--unread-only",
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "email-fetch",
+                "--folder",
+                "Sent",
+                "--limit",
+                "5",
+                "--unread-only",
+            ],
+        )
 
         assert result.exit_code == 0
         mock_client.fetch_emails.assert_called_once_with(

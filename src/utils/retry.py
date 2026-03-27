@@ -51,6 +51,7 @@ def with_retry(
     def should_retry(exc: BaseException) -> bool:
         # Lazy import avoids circular dependency (base.py → src.utils → retry.py → base.py)
         from src.integrations.base import AuthenticationError
+
         return isinstance(exc, exceptions) and not isinstance(exc, AuthenticationError)
 
     return tenacity.retry(

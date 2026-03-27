@@ -419,22 +419,34 @@ class EmailClient(BaseIntegration):
                     filename = part.get_filename() or "unknown"
                     payload = part.get_payload(decode=True)
                     if payload:
-                        attachments.append({
-                            "filename": filename,
-                            "content_type": content_type,
-                            "size": len(payload),
-                        })
+                        attachments.append(
+                            {
+                                "filename": filename,
+                                "content_type": content_type,
+                                "size": len(payload),
+                            }
+                        )
 
                 elif content_type == "text/plain" and not content_disposition:
                     raw = part.get_payload(decode=True)
-                    body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+                    body = (
+                        raw.decode("utf-8", errors="replace")
+                        if isinstance(raw, bytes)
+                        else str(raw or "")
+                    )
 
                 elif content_type == "text/html" and not content_disposition:
                     raw_html = part.get_payload(decode=True)
-                    html_body = raw_html.decode("utf-8", errors="replace") if isinstance(raw_html, bytes) else str(raw_html or "")
+                    html_body = (
+                        raw_html.decode("utf-8", errors="replace")
+                        if isinstance(raw_html, bytes)
+                        else str(raw_html or "")
+                    )
         else:
             raw = msg.get_payload(decode=True)
-            body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+            body = (
+                raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+            )
 
         return ReceivedEmail(
             uid=uid,

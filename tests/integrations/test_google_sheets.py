@@ -21,7 +21,9 @@ class TestGoogleSheetsConfig:
         assert config.max_retries == 3
         assert config.timeout == 30.0
         assert config.rate_limit_delay == 1.0
-        assert config.credentials_path == Path.home() / '.config' / 'upwork-learn' / 'credentials.json'
+        assert (
+            config.credentials_path == Path.home() / ".config" / "upwork-learn" / "credentials.json"
+        )
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -79,7 +81,9 @@ class TestGoogleSheetsClient:
 
     @patch("src.integrations.google_sheets.gspread")
     @patch("src.integrations.google_sheets.Credentials")
-    def test_connect_success(self, mock_credentials: MagicMock, mock_gspread: MagicMock, client: GoogleSheetsClient) -> None:
+    def test_connect_success(
+        self, mock_credentials: MagicMock, mock_gspread: MagicMock, client: GoogleSheetsClient
+    ) -> None:
         """Test successful connection."""
         mock_creds = MagicMock()
         mock_credentials.from_service_account_file.return_value = mock_creds
@@ -115,9 +119,7 @@ class TestGoogleSheetsClient:
     def test_read_range(self, mock_gspread: MagicMock, client: GoogleSheetsClient) -> None:
         """Test reading a range."""
         mock_spreadsheet = MagicMock()
-        mock_spreadsheet.values_get.return_value = {
-            "values": [["A1", "B1"], ["A2", "B2"]]
-        }
+        mock_spreadsheet.values_get.return_value = {"values": [["A1", "B1"], ["A2", "B2"]]}
         client._client = MagicMock()
         client._spreadsheet = mock_spreadsheet
         client._spreadsheet_id = "test_id"
@@ -250,10 +252,16 @@ class TestGoogleSheetsClient:
         mock_ws.clear.assert_called_once()
 
     @patch("src.integrations.google_sheets.Credentials")
-    def test_load_credentials_from_env(self, mock_creds_class: MagicMock, client: GoogleSheetsClient, monkeypatch: "pytest.MonkeyPatch") -> None:
+    def test_load_credentials_from_env(
+        self,
+        mock_creds_class: MagicMock,
+        client: GoogleSheetsClient,
+        monkeypatch: "pytest.MonkeyPatch",
+    ) -> None:
         """Test loading credentials from GOOGLE_SHEETS_CREDENTIALS_JSON env var."""
         import base64
         import json
+
         dummy = {"type": "service_account", "project_id": "test"}
         encoded = base64.b64encode(json.dumps(dummy).encode()).decode()
         monkeypatch.setenv("GOOGLE_SHEETS_CREDENTIALS_JSON", encoded)

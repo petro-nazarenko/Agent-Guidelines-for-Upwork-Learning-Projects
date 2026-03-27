@@ -82,6 +82,7 @@ class TestWithTimeout:
 
     def test_function_completes_within_timeout(self) -> None:
         """Test that function completes normally when within timeout."""
+
         @with_timeout(seconds=5.0)
         def fast_func() -> str:
             return "done"
@@ -91,6 +92,7 @@ class TestWithTimeout:
 
     def test_function_raises_on_timeout(self) -> None:
         """Test that TimeoutError is raised when function exceeds timeout."""
+
         @with_timeout(seconds=0.1)
         def slow_func() -> str:
             time.sleep(10)
@@ -118,6 +120,7 @@ class TestWithTimeout:
 
     def test_preserves_function_name(self) -> None:
         """Test that decorator preserves the wrapped function name."""
+
         @with_timeout(seconds=5.0)
         def my_named_func() -> None:
             pass

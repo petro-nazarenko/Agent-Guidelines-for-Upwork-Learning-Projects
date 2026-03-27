@@ -196,7 +196,9 @@ class TestPDFProcessor:
         assert result == {0: "Page 1 text", 1: "Page 2 text"}
 
     @patch("src.integrations.pdf_processor.pdfplumber")
-    def test_extract_text_specific_pages(self, mock_pdfplumber: MagicMock, processor: PDFProcessor) -> None:
+    def test_extract_text_specific_pages(
+        self, mock_pdfplumber: MagicMock, processor: PDFProcessor
+    ) -> None:
         """Test extracting text from specific pages."""
         mock_page = MagicMock()
         mock_page.extract_text.return_value = "Page 1 text"
@@ -251,7 +253,9 @@ class TestPDFProcessor:
         assert matches[0]["keyword"].lower() == "test"
 
     @patch("src.integrations.pdf_processor.pdfplumber")
-    def test_extract_invoice_data(self, mock_pdfplumber: MagicMock, processor: PDFProcessor) -> None:
+    def test_extract_invoice_data(
+        self, mock_pdfplumber: MagicMock, processor: PDFProcessor
+    ) -> None:
         """Test extracting invoice data."""
         invoice_text = """
         Invoice #INV-2024-001
