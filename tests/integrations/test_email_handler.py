@@ -268,3 +268,54 @@ class TestEmailClient:
                 client = EmailClient(config=config)
                 with client:
                     assert client._connected is True
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_mark_as_unread(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
+        """Test marking email as unread."""
+        mock_imap = MagicMock()
+        mock_imap_class.return_value = mock_imap
+        client._imap = mock_imap
+
+        client.mark_as_unread(123)
+
+        mock_imap.remove_flags.assert_called_with(123, ["\\Seen"])
+
+    def test_fetch_emails_raises_when_imap_none_after_connect(self, client: EmailClient) -> None:
+        """Test fetch_emails raises IntegrationConnectionError when imap remains None."""
+        from src.integrations.base import IntegrationConnectionError
+
+        with patch.object(client, "connect_imap"):
+            # After patched connect_imap, _imap is still None
+            with pytest.raises(IntegrationConnectionError):
+                client.fetch_emails()
+
+    def test_send_email_html(self, client: EmailClient) -> None:
+        """Test sending an HTML email."""
+        mock_smtp = MagicMock()
+        client._smtp = mock_smtp
+
+        email_msg = Email(
+            to=["recipient@example.com"],
+            subject="HTML Test",
+            body="<h1>Hello</h1>",
+            html=True,
+        )
+        result = client.send_email(email_msg)
+
+        assert result.get("status") == "sent"
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_fetch_emails_with_since_date(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
+        """Test fetch_emails with since_date filter."""
+        from datetime import datetime
+
+        mock_imap = MagicMock()
+        mock_imap.search.return_value = []
+        mock_imap_class.return_value = mock_imap
+        client._imap = mock_imap
+
+        emails = client.fetch_emails(since_date=datetime(2024, 1, 1))
+
+        assert emails == []
+        call_args = mock_imap.search.call_args[0][0]
+        assert any("SINCE" in str(c) for c in call_args)
