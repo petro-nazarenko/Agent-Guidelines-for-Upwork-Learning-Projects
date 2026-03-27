@@ -280,6 +280,51 @@ def email_fetch(
         raise typer.Exit(1) from e
 
 
+@app.command()
+def health() -> None:
+    """Check connectivity to configured external services."""
+    import socket
+
+    from src.utils.config import load_config
+
+    cfg = load_config()
+    all_ok = True
+
+    # SMTP check
+    smtp_host = cfg.email.smtp_host
+    smtp_port = cfg.email.smtp_port
+    try:
+        with socket.create_connection((smtp_host, smtp_port), timeout=5):
+            console.print(f"[green]SMTP {smtp_host}:{smtp_port} — OK[/green]")
+    except OSError as e:
+        console.print(f"[red]SMTP {smtp_host}:{smtp_port} — FAIL ({e})[/red]")
+        all_ok = False
+
+    # IMAP check
+    imap_host = cfg.email.imap_host
+    imap_port = cfg.email.imap_port
+    try:
+        with socket.create_connection((imap_host, imap_port), timeout=5):
+            console.print(f"[green]IMAP {imap_host}:{imap_port} — OK[/green]")
+    except OSError as e:
+        console.print(f"[red]IMAP {imap_host}:{imap_port} — FAIL ({e})[/red]")
+        all_ok = False
+
+    # Credentials file check
+    creds = cfg.google_sheets.credentials_path
+    import os as _os
+    creds_json = _os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+    if creds_json:
+        console.print("[green]Google credentials — OK (env var)[/green]")
+    elif creds.exists():
+        console.print(f"[green]Google credentials — OK ({creds})[/green]")
+    else:
+        console.print(f"[yellow]Google credentials — NOT FOUND ({creds})[/yellow]")
+
+    if not all_ok:
+        raise typer.Exit(1)
+
+
 def main() -> None:
     """Main entry point."""
     import logging as _logging
