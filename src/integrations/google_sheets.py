@@ -146,9 +146,15 @@ class GoogleSheetsClient(BaseIntegration):
                 title=self._spreadsheet.title,
             )
             return self._spreadsheet
+        except (AuthenticationError, IntegrationConnectionError, ValueError):
+            raise
+        except SpreadsheetNotFound:
+            raise
+        except gspread.exceptions.APIError as e:
+            raise IntegrationConnectionError(f"Google Sheets API error: {e}") from e
         except Exception as e:
-            raise SpreadsheetNotFound(
-                f"Spreadsheet not found or access denied: {spreadsheet_id}"
+            raise IntegrationConnectionError(
+                f"Failed to open spreadsheet {spreadsheet_id}: {e}"
             ) from e
 
     @with_retry(max_attempts=3)
