@@ -5,7 +5,6 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from pydantic import SecretStr
 
 from src.integrations.email_handler import (

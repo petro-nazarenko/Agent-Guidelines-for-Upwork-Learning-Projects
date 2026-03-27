@@ -252,7 +252,8 @@ class TestGoogleSheetsClient:
     @patch("src.integrations.google_sheets.Credentials")
     def test_load_credentials_from_env(self, mock_creds_class: MagicMock, client: GoogleSheetsClient, monkeypatch: "pytest.MonkeyPatch") -> None:
         """Test loading credentials from GOOGLE_SHEETS_CREDENTIALS_JSON env var."""
-        import base64, json
+        import base64
+        import json
         dummy = {"type": "service_account", "project_id": "test"}
         encoded = base64.b64encode(json.dumps(dummy).encode()).decode()
         monkeypatch.setenv("GOOGLE_SHEETS_CREDENTIALS_JSON", encoded)
