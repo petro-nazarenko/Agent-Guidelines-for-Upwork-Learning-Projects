@@ -1,9 +1,12 @@
 """Tests for email handler."""
 
+import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from pydantic import SecretStr
 
 from src.integrations.email_handler import (
     Email,
@@ -11,6 +14,9 @@ from src.integrations.email_handler import (
     EmailConfig,
     ReceivedEmail,
 )
+# Never hard-code credentials — read from env so gitleaks stays quiet.
+_TEST_SECRET = SecretStr(os.environ.get("TEST_EMAIL_PASSWORD", "ci-placeholder"))
+
 
 
 class TestEmailConfig:
@@ -30,7 +36,7 @@ class TestEmailConfig:
             smtp_host="smtp.custom.com",
             smtp_port=465,
             smtp_user="test@test.com",
-            smtp_password="secret",
+            smtp_password=_TEST_SECRET,
         )
         assert config.smtp_host == "smtp.custom.com"
         assert config.smtp_port == 465
@@ -83,9 +89,9 @@ class TestEmailClient:
         """Create test configuration."""
         return EmailConfig(
             smtp_user="test@gmail.com",
-            smtp_password="test_password",
+            smtp_password=_TEST_SECRET,
             imap_user="test@gmail.com",
-            imap_password="test_password",
+            imap_password=_TEST_SECRET,
         )
 
     @pytest.fixture

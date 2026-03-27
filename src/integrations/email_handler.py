@@ -17,6 +17,7 @@ from typing import Any, Protocol
 
 import imapclient
 from imapclient import IMAPClient
+from pydantic import SecretStr
 
 from src.integrations.base import (
     AuthenticationError,
@@ -45,12 +46,12 @@ class EmailConfig(IntegrationConfig):
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_user: str | None = None
-    smtp_password: str | None = None
+    smtp_password: SecretStr | None = None
 
     imap_host: str = "imap.gmail.com"
     imap_port: int = 993
     imap_user: str | None = None
-    imap_password: str | None = None
+    imap_password: SecretStr | None = None
     trash_folder: str = "[Gmail]/Trash"
 
 
@@ -127,7 +128,10 @@ class EmailClient(BaseIntegration):
             self._smtp.ehlo()
 
             if self._config.smtp_user and self._config.smtp_password:
-                self._smtp.login(self._config.smtp_user, self._config.smtp_password)
+                self._smtp.login(
+                    self._config.smtp_user,
+                    self._config.smtp_password.get_secret_value(),
+                )
 
             self._logger.info(
                 "Connected to SMTP",
@@ -155,7 +159,10 @@ class EmailClient(BaseIntegration):
             self._imap.start_tls()
 
             if self._config.imap_user and self._config.imap_password:
-                self._imap.login(self._config.imap_user, self._config.imap_password)
+                self._imap.login(
+                    self._config.imap_user,
+                    self._config.imap_password.get_secret_value(),
+                )
 
             self._logger.info(
                 "Connected to IMAP",
