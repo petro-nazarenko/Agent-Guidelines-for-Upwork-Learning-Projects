@@ -110,8 +110,18 @@ regex = '''(?i)(smtp|imap|email)[_-]?(password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z
 tags = ["credentials", "email"]
 
   [rules.allowlist]
-  # Field declarations in source/config (type annotations, not real values)
-  regexes = ['''SecretStr''', '''str \| None''']
+  # regexTarget="line" lets us match the whole source line so we can distinguish:
+  #   field definition:  smtp_password: SecretStr | None = None   ← allowed
+  #   real assignment:   smtp_password = "actualpassword"         ← blocked
+  regexTarget = "line"
+  regexes = [
+    # Type annotations in dataclasses / Pydantic settings (colon, not equals)
+    '''(?i)(smtp|imap)[_-]?password\s*:\s*SecretStr''',
+    # Module-level test constant — value comes from os.environ, not a literal
+    '''_TEST_SECRET\s*=\s*SecretStr\(os\.environ''',
+    # Call sites that reference the constant (no string literal on the line)
+    '''(smtp|imap)_password\s*=\s*_TEST_SECRET''',
+  ]
 
 [[rules]]
 id = "basic-auth-header"
@@ -150,5 +160,12 @@ regex = '''(?i)(password|passwd|pwd|secret)\s*[:=]\s*['"]?[a-zA-Z0-9!@#$%^&*()_+
 tags = ["credentials", "password"]
 
   [rules.allowlist]
-  # Field declarations in source/config (type annotations, not real values)
-  regexes = ['''SecretStr''', '''str \| None''']
+  regexTarget = "line"
+  regexes = [
+    # Type annotations in dataclasses / Pydantic settings (colon, not equals)
+    '''(?i)(smtp|imap)[_-]?password\s*:\s*SecretStr''',
+    # Module-level test constant — value comes from os.environ, not a literal
+    '''_TEST_SECRET\s*=\s*SecretStr\(os\.environ''',
+    # Call sites that reference the constant (no string literal on the line)
+    '''(smtp|imap)_password\s*=\s*_TEST_SECRET''',
+  ]
