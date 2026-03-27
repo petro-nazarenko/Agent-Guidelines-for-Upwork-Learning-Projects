@@ -1,5 +1,6 @@
 """Base integration classes and common patterns."""
 
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -39,6 +40,44 @@ class IntegrationConnectionError(IntegrationError):
     """Raised when connection fails."""
 
 
+class _TokenBucket:
+    """Thread-safe token-bucket rate limiter.
+
+    Tokens refill at *rate* per second up to *capacity*.  Call ``acquire()``
+    before each outbound request; it blocks until a token is available.
+
+    Args:
+        rate: Tokens added per second (= maximum sustained requests/s).
+        capacity: Burst capacity (defaults to *rate*, i.e. no burst).
+    """
+
+    def __init__(self, rate: float, capacity: float | None = None) -> None:
+        if rate <= 0:
+            raise ValueError("rate must be positive")
+        self._rate = rate
+        self._capacity = capacity if capacity is not None else rate
+        self._tokens = self._capacity
+        self._last_refill = time.monotonic()
+        self._lock = threading.Lock()
+
+    def acquire(self) -> None:
+        """Block until a token is available, then consume it."""
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                elapsed = now - self._last_refill
+                self._tokens = min(
+                    self._capacity, self._tokens + elapsed * self._rate
+                )
+                self._last_refill = now
+                if self._tokens >= 1.0:
+                    self._tokens -= 1.0
+                    return
+                wait = (1.0 - self._tokens) / self._rate
+            # Sleep outside the lock so other threads can proceed.
+            time.sleep(wait)
+
+
 @dataclass
 class IntegrationConfig:
     """Base configuration for integrations."""
@@ -46,6 +85,8 @@ class IntegrationConfig:
     max_retries: int = 3
     timeout: float = 30.0
     rate_limit_delay: float = 1.0
+    #: Maximum outbound requests per second (0 = unlimited / no throttle).
+    requests_per_second: float = 0.0
 
 
 class BaseIntegration(ABC):
@@ -62,6 +103,11 @@ class BaseIntegration(ABC):
         self._config = config or IntegrationConfig()
         self._connected = False
         self._logger = get_logger(f"{__name__}.{self.__class__.__name__}")
+        self._bucket: _TokenBucket | None = (
+            _TokenBucket(self._config.requests_per_second)
+            if self._config.requests_per_second > 0
+            else None
+        )
 
     @property
     @abstractmethod
@@ -87,6 +133,24 @@ class BaseIntegration(ABC):
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Context manager exit."""
         self.disconnect()
+
+    def _throttle(self) -> None:
+        """Pace outgoing requests to the configured rate.
+
+        Call once before each outbound API request.  When
+        ``IntegrationConfig.requests_per_second`` is 0 (the default) this is a
+        no-op.  When a positive rate is set this blocks until the token bucket
+        has a token available, ensuring the sustained request rate never exceeds
+        the configured limit.
+
+        Example::
+
+            def fetch_data(self) -> dict:
+                self._throttle()          # pace before hitting the API
+                return self._client.get("/data")
+        """
+        if self._bucket is not None:
+            self._bucket.acquire()
 
     def retry_with_backoff(
         self,
