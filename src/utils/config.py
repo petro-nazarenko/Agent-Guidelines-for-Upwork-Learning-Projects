@@ -14,6 +14,7 @@ class GoogleSheetsSettings(BaseSettings):
         env_prefix="GOOGLE_SHEETS_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     credentials_path: Path = Field(
@@ -34,6 +35,7 @@ class EmailSettings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     smtp_host: str = Field(default="smtp.gmail.com")
@@ -62,6 +64,7 @@ class APIKeySettings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     bol_com_api_key: str | None = Field(default=None)
@@ -77,6 +80,7 @@ class AppSettings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="",
         case_sensitive=False,
+        extra="ignore",
     )
 
     log_level: str = Field(default="INFO")
@@ -110,6 +114,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
+        extra="ignore",
     )
 
     google_sheets: GoogleSheetsSettings = Field(default_factory=GoogleSheetsSettings)
