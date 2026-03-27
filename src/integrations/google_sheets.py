@@ -316,6 +316,7 @@ class GoogleSheetsClient(BaseIntegration):
             self._logger.error("Failed to update cell", cell=f"{row}:{col}", error=str(e))
             raise
 
+    @with_retry(max_attempts=3)
     def batch_write(
         self,
         data: list[dict[str, Any]],
