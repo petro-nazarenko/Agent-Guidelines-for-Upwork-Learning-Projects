@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -106,7 +109,19 @@ class GoogleSheetsClient(BaseIntegration):
         self._logger.info("Disconnected from Google Sheets API")
 
     def _load_credentials(self) -> Any:
-        """Load credentials from JSON file."""
+        """Load credentials from JSON env var or file.
+
+        Checks ``GOOGLE_SHEETS_CREDENTIALS_JSON`` first (base64-encoded JSON),
+        then falls back to the file at ``credentials_path``.
+        """
+        json_b64 = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+        if json_b64:
+            info = json.loads(base64.b64decode(json_b64).decode())
+            return Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
+                info,
+                scopes=self.SCOPES,
+            )
+
         cred_path = self._config.credentials_path
         if not cred_path.exists():
             raise FileNotFoundError(f"Credentials file not found: {cred_path}")
