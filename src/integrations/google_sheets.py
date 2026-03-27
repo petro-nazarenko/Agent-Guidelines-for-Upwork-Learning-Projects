@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -27,7 +30,9 @@ logger = get_logger(__name__)
 class GoogleSheetsConfig(IntegrationConfig):
     """Configuration for Google Sheets integration."""
 
-    credentials_path: Path = field(default_factory=lambda: Path.home() / '.config' / 'upwork-learn' / 'credentials.json')
+    credentials_path: Path = field(
+        default_factory=lambda: Path.home() / ".config" / "upwork-learn" / "credentials.json"
+    )
     spreadsheet_id: str | None = None
 
 
@@ -106,13 +111,22 @@ class GoogleSheetsClient(BaseIntegration):
         self._logger.info("Disconnected from Google Sheets API")
 
     def _load_credentials(self) -> Any:
-        """Load credentials from JSON file."""
+        """Load credentials from JSON env var or file.
+
+        Checks ``GOOGLE_SHEETS_CREDENTIALS_JSON`` first (base64-encoded JSON),
+        then falls back to the file at ``credentials_path``.
+        """
+        json_b64 = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+        if json_b64:
+            info = json.loads(base64.b64decode(json_b64).decode())
+            return Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
+                info,
+                scopes=self.SCOPES,
+            )
+
         cred_path = self._config.credentials_path
         if not cred_path.exists():
-            self._logger.warning(
-                "Credentials file not found, continuing in test/mock mode",
-                path=str(cred_path),
-            )
+            raise FileNotFoundError(f"Credentials file not found: {cred_path}")
         return Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
             str(cred_path),
             scopes=self.SCOPES,
@@ -149,9 +163,15 @@ class GoogleSheetsClient(BaseIntegration):
                 title=self._spreadsheet.title,
             )
             return self._spreadsheet
+        except (AuthenticationError, IntegrationConnectionError, ValueError):
+            raise
+        except SpreadsheetNotFound:
+            raise
+        except gspread.exceptions.APIError as e:
+            raise IntegrationConnectionError(f"Google Sheets API error: {e}") from e
         except Exception as e:
-            raise SpreadsheetNotFound(
-                f"Spreadsheet not found or access denied: {spreadsheet_id}"
+            raise IntegrationConnectionError(
+                f"Failed to open spreadsheet {spreadsheet_id}: {e}"
             ) from e
 
     @with_retry(max_attempts=3)
@@ -298,6 +318,7 @@ class GoogleSheetsClient(BaseIntegration):
             self._logger.error("Failed to update cell", cell=f"{row}:{col}", error=str(e))
             raise
 
+    @with_retry(max_attempts=3)
     def batch_write(
         self,
         data: list[dict[str, Any]],

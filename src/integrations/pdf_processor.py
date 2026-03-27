@@ -59,10 +59,9 @@ class TableData:
         headers = [str(h).strip() if h else f"col_{i}" for i, h in enumerate(self.rows[0])]
         result = []
         for row in self.rows[1:]:
-            result.append({
-                headers[i]: (str(cell).strip() if cell else None)
-                for i, cell in enumerate(row)
-            })
+            result.append(
+                {headers[i]: (str(cell).strip() if cell else None) for i, cell in enumerate(row)}
+            )
         return result
 
     def to_csv_rows(self) -> list[str]:
@@ -175,7 +174,7 @@ class PDFProcessor(BaseIntegration):
             creation_date=metadata.get("CreationDate"),
             modification_date=metadata.get("ModDate"),
             page_count=len(pdf.pages),
-            encrypted=bool(metadata.get('/Encrypt') or metadata.get('Encrypt')),
+            encrypted=bool(metadata.get("/Encrypt") or metadata.get("Encrypt")),
         )
 
     def extract_text(
@@ -218,9 +217,7 @@ class PDFProcessor(BaseIntegration):
             Concatenated text from all pages
         """
         text_dict = self.extract_text(path=path)
-        return "\n\n".join(
-            f"--- Page {i + 1} ---\n{text}" for i, text in text_dict.items()
-        )
+        return "\n\n".join(f"--- Page {i + 1} ---\n{text}" for i, text in text_dict.items())
 
     def extract_tables(
         self,
@@ -257,12 +254,14 @@ class PDFProcessor(BaseIntegration):
             page_tables = page.extract_tables(table_settings=settings)
 
             for idx, table in enumerate(page_tables):
-                tables.append(TableData(
-                    page=i,
-                    table_index=idx,
-                    rows=table,
-                    bbox=None,
-                ))
+                tables.append(
+                    TableData(
+                        page=i,
+                        table_index=idx,
+                        rows=table,
+                        bbox=None,
+                    )
+                )
                 self._logger.debug(
                     "Extracted table",
                     page=i,
@@ -319,12 +318,14 @@ class PDFProcessor(BaseIntegration):
                 end = min(len(text), match.end() + context_chars)
                 context = text[start:end]
 
-                matches.append({
-                    "page": page_num,
-                    "keyword": match.group(),
-                    "position": match.start(),
-                    "context": context,
-                })
+                matches.append(
+                    {
+                        "page": page_num,
+                        "keyword": match.group(),
+                        "position": match.start(),
+                        "context": context,
+                    }
+                )
 
         self._logger.info("Keyword search", keyword=keyword, matches=len(matches))
         return matches

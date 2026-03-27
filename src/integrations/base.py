@@ -1,5 +1,6 @@
 """Base integration classes and common patterns."""
 
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -129,7 +130,12 @@ class BaseIntegration(ABC):
         )
 
     def _handle_rate_limit(self, response: Any) -> None:
-        """Handle rate limit response.
+        """Handle rate limit response with automatic backoff.
+
+        If the response carries a 429 status, waits for the ``Retry-After``
+        interval (default: ``rate_limit_delay``) before raising
+        ``RateLimitError`` so the caller's retry logic gets a real chance to
+        succeed.
 
         Args:
             response: API response object
@@ -138,10 +144,18 @@ class BaseIntegration(ABC):
             RateLimitError: When rate limit is exceeded
         """
         if hasattr(response, "status_code") and response.status_code == 429:
-            retry_after = response.headers.get("Retry-After")
+            retry_after_raw = response.headers.get("Retry-After")
+            retry_after = int(retry_after_raw) if retry_after_raw else None
+            wait = retry_after if retry_after is not None else self._config.rate_limit_delay
+            self._logger.warning(
+                "rate_limit_hit",
+                wait_seconds=wait,
+                retry_after=retry_after,
+            )
+            time.sleep(wait)
             raise RateLimitError(
                 "Rate limit exceeded",
-                retry_after=int(retry_after) if retry_after else None,
+                retry_after=retry_after,
             )
 
     def _validate_config(self) -> None:

@@ -11,7 +11,7 @@ from src import __version__
 from src.integrations.email_handler import Email, EmailClient, EmailConfig
 from src.integrations.google_sheets import GoogleSheetsClient, GoogleSheetsConfig
 from src.integrations.pdf_processor import PDFProcessor
-from src.utils.logger import get_logger
+from src.utils.logger import bind_request_id, get_logger
 
 app = typer.Typer(
     name="upwork-learn",
@@ -36,10 +36,9 @@ def sheets_read(
 ) -> None:
     """Read data from Google Sheets."""
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         with client:
@@ -69,10 +68,9 @@ def sheets_write(
     import json
 
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         data = json.loads(values)
@@ -97,10 +95,9 @@ def sheets_list(
 ) -> None:
     """List worksheets in a spreadsheet."""
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         with client:
@@ -122,7 +119,9 @@ def sheets_list(
 @app.command()
 def pdf_extract_text(
     path: Annotated[str, typer.Argument(help="Path to PDF file")],
-    pages: Annotated[str | None, typer.Option("--pages", "-p", help="Page numbers (comma-separated)")] = None,
+    pages: Annotated[
+        str | None, typer.Option("--pages", "-p", help="Page numbers (comma-separated)")
+    ] = None,
     output: Annotated[str | None, typer.Option("--output", "-o", help="Output file")] = None,
 ) -> None:
     """Extract text from PDF."""
@@ -248,7 +247,9 @@ def email_send(
 def email_fetch(
     folder: Annotated[str, typer.Option("--folder", "-f", help="IMAP folder")] = "INBOX",
     limit: Annotated[int, typer.Option("--limit", "-l", help="Max emails to fetch")] = 10,
-    unread_only: Annotated[bool, typer.Option("--unread-only/--all", help="Only fetch unread")] = False,
+    unread_only: Annotated[
+        bool, typer.Option("--unread-only/--all", help="Only fetch unread")
+    ] = False,
 ) -> None:
     """Fetch emails from IMAP server."""
     try:
@@ -271,7 +272,9 @@ def email_fetch(
         for email in emails:
             table.add_row(
                 str(email.uid),
-                email.from_address[:18] + "..." if len(email.from_address) > 18 else email.from_address,
+                email.from_address[:18] + "..."
+                if len(email.from_address) > 18
+                else email.from_address,
                 email.subject[:40] + "..." if len(email.subject) > 40 else email.subject,
                 email.date.strftime("%Y-%m-%d"),
             )
@@ -283,8 +286,62 @@ def email_fetch(
         raise typer.Exit(1) from e
 
 
+@app.command()
+def health() -> None:
+    """Check connectivity to configured external services."""
+    import socket
+
+    from src.utils.config import load_config
+
+    cfg = load_config()
+    all_ok = True
+
+    # SMTP check
+    smtp_host = cfg.email.smtp_host
+    smtp_port = cfg.email.smtp_port
+    try:
+        with socket.create_connection((smtp_host, smtp_port), timeout=5):
+            console.print(f"[green]SMTP {smtp_host}:{smtp_port} — OK[/green]")
+    except OSError as e:
+        console.print(f"[red]SMTP {smtp_host}:{smtp_port} — FAIL ({e})[/red]")
+        all_ok = False
+
+    # IMAP check
+    imap_host = cfg.email.imap_host
+    imap_port = cfg.email.imap_port
+    try:
+        with socket.create_connection((imap_host, imap_port), timeout=5):
+            console.print(f"[green]IMAP {imap_host}:{imap_port} — OK[/green]")
+    except OSError as e:
+        console.print(f"[red]IMAP {imap_host}:{imap_port} — FAIL ({e})[/red]")
+        all_ok = False
+
+    # Credentials file check
+    creds = cfg.google_sheets.credentials_path
+    import os as _os
+
+    creds_json = _os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON")
+    if creds_json:
+        console.print("[green]Google credentials — OK (env var)[/green]")
+    elif creds.exists():
+        console.print(f"[green]Google credentials — OK ({creds})[/green]")
+    else:
+        console.print(f"[yellow]Google credentials — NOT FOUND ({creds})[/yellow]")
+
+    if not all_ok:
+        raise typer.Exit(1)
+
+
 def main() -> None:
     """Main entry point."""
+    import logging as _logging
+
+    from src.utils.config import load_config
+    from src.utils.logger import configure_logging
+
+    cfg = load_config()
+    configure_logging(getattr(_logging, cfg.app.log_level, _logging.INFO))
+    bind_request_id()
     app()
 
 

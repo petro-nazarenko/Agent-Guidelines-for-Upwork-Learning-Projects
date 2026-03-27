@@ -23,7 +23,6 @@ if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
 fi
 
 FAILED=0
-MYPY_FAILED=0
 
 # ── цвета ─────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -47,14 +46,14 @@ else
     echo -e "${YELLOW}⚡ lint skipped (SKIP_LINT=1)${RESET}"
 fi
 
-# ── 2. typecheck (mypy) — МЯГКИЙ ──────────────────────────────────────────────
+# ── 2. typecheck (mypy) ────────────────────────────────────────────────────────
 if [ "${SKIP_MYPY:-0}" != "1" ]; then
-    section "typecheck  mypy  (soft)"
+    section "typecheck  mypy"
     if python3 -m mypy src/ 2>&1; then
         pass "mypy: ошибок нет"
     else
-        soft "mypy: есть ошибки типов (не блокирует)"
-        MYPY_FAILED=1
+        fail "mypy: есть ошибки типов"
+        FAILED=1
     fi
 else
     echo -e "${YELLOW}⚡ mypy skipped (SKIP_MYPY=1)${RESET}"
@@ -75,10 +74,8 @@ fi
 
 # ── итог ───────────────────────────────────────────────────────────────────────
 echo ""
-if [ $FAILED -eq 0 ] && [ $MYPY_FAILED -eq 0 ]; then
+if [ $FAILED -eq 0 ]; then
     echo -e "${GREEN}${BOLD}✓ Preflight passed${RESET}"
-elif [ $FAILED -eq 0 ]; then
-    echo -e "${YELLOW}${BOLD}⚠ Preflight passed (mypy warnings)${RESET}"
 else
     echo -e "${RED}${BOLD}✗ Preflight FAILED${RESET}"
 fi

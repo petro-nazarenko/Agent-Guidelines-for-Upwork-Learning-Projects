@@ -81,7 +81,7 @@ ipython_config.py
 Pipfile.lock
 
 # uv
-uv.lock
+# uv.lock is intentionally tracked — see ROADMAP.md §5.6
 
 # poetry
 poetry.lock

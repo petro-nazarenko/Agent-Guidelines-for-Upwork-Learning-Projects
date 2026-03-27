@@ -17,6 +17,7 @@ from typing import Any, Protocol
 
 import imapclient
 from imapclient import IMAPClient
+from pydantic import SecretStr
 
 from src.integrations.base import (
     AuthenticationError,
@@ -45,12 +46,13 @@ class EmailConfig(IntegrationConfig):
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_user: str | None = None
-    smtp_password: str | None = None
+    smtp_password: SecretStr | None = None
 
     imap_host: str = "imap.gmail.com"
     imap_port: int = 993
     imap_user: str | None = None
-    imap_password: str | None = None
+    imap_password: SecretStr | None = None
+    trash_folder: str = "[Gmail]/Trash"
 
 
 @dataclass
@@ -126,7 +128,10 @@ class EmailClient(BaseIntegration):
             self._smtp.ehlo()
 
             if self._config.smtp_user and self._config.smtp_password:
-                self._smtp.login(self._config.smtp_user, self._config.smtp_password)
+                self._smtp.login(
+                    self._config.smtp_user,
+                    self._config.smtp_password.get_secret_value(),
+                )
 
             self._logger.info(
                 "Connected to SMTP",
@@ -154,7 +159,10 @@ class EmailClient(BaseIntegration):
             self._imap.start_tls()
 
             if self._config.imap_user and self._config.imap_password:
-                self._imap.login(self._config.imap_user, self._config.imap_password)
+                self._imap.login(
+                    self._config.imap_user,
+                    self._config.imap_password.get_secret_value(),
+                )
 
             self._logger.info(
                 "Connected to IMAP",
@@ -284,10 +292,11 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
-            self._imap.select_folder(folder, readonly=False)
+            self._imap.select_folder(folder, readonly=True)
 
             search_criteria = ["ALL"]
             if unread_only:
@@ -334,7 +343,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
@@ -353,7 +363,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
@@ -372,11 +383,12 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
-            self._imap.move(uid, "[Gmail]/Trash")
+            self._imap.move(uid, self._config.trash_folder)
             self._logger.debug("Deleted email", uid=uid)
         except Exception as e:
             self._logger.error("Failed to delete email", uid=uid, error=str(e))
@@ -407,22 +419,34 @@ class EmailClient(BaseIntegration):
                     filename = part.get_filename() or "unknown"
                     payload = part.get_payload(decode=True)
                     if payload:
-                        attachments.append({
-                            "filename": filename,
-                            "content_type": content_type,
-                            "size": len(payload),
-                        })
+                        attachments.append(
+                            {
+                                "filename": filename,
+                                "content_type": content_type,
+                                "size": len(payload),
+                            }
+                        )
 
                 elif content_type == "text/plain" and not content_disposition:
                     raw = part.get_payload(decode=True)
-                    body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+                    body = (
+                        raw.decode("utf-8", errors="replace")
+                        if isinstance(raw, bytes)
+                        else str(raw or "")
+                    )
 
                 elif content_type == "text/html" and not content_disposition:
                     raw_html = part.get_payload(decode=True)
-                    html_body = raw_html.decode("utf-8", errors="replace") if isinstance(raw_html, bytes) else str(raw_html or "")
+                    html_body = (
+                        raw_html.decode("utf-8", errors="replace")
+                        if isinstance(raw_html, bytes)
+                        else str(raw_html or "")
+                    )
         else:
             raw = msg.get_payload(decode=True)
-            body = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+            body = (
+                raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw or "")
+            )
 
         return ReceivedEmail(
             uid=uid,
@@ -443,7 +467,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         folders = self._imap.list_folders()
         return [f[2] for f in folders]

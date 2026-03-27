@@ -12,12 +12,19 @@ paths = [
     "^dist/",
     "^build/",
     "^\\.git/",
+    # Fixture files contain intentionally fake keys for unit tests
+    "^tests/fixtures/",
 ]
 regexes = [
     "^ пример? ",
     "^ example ",
     "^placeholder[_-]?",
     "^test[_-]?",
+    # Python type annotations — field definitions, not real secrets
+    # e.g. smtp_password: SecretStr | None = None
+    "^SecretStr",
+    "^str \\| None",
+    "^None$",
 ]
 
 [[rules]]
@@ -92,11 +99,29 @@ description = "SSH Private Key"
 regex = '''-----BEGIN (RSA |DSA |EC |OPENSSH |PGP )?PRIVATE KEY-----'''
 tags = ["key", "SSH"]
 
+  [rules.allowlist]
+  # tests/fixtures/credentials.json contains a deliberately fake RSA key for unit tests
+  paths = ['''tests/fixtures/''']
+
 [[rules]]
 id = "email-password-credentials"
 description = "Email/Password credentials"
 regex = '''(?i)(smtp|imap|email)[_-]?(password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?]{6,}['"]?'''
 tags = ["credentials", "email"]
+
+  [rules.allowlist]
+  # regexTarget="line" lets us match the whole source line so we can distinguish:
+  #   field definition:  smtp_password: SecretStr | None = None   ← allowed
+  #   real assignment:   smtp_password = "actualpassword"         ← blocked
+  regexTarget = "line"
+  regexes = [
+    # Type annotations in dataclasses / Pydantic settings (colon, not equals)
+    '''(?i)(smtp|imap)[_-]?password\s*:\s*SecretStr''',
+    # Module-level test constant — value comes from os.environ, not a literal
+    '''_TEST_SECRET\s*=\s*SecretStr\(os\.environ''',
+    # Call sites that reference the constant (no string literal on the line)
+    '''(smtp|imap)_password\s*=\s*_TEST_SECRET''',
+  ]
 
 [[rules]]
 id = "basic-auth-header"
@@ -133,3 +158,14 @@ id = "connection-string-with-password"
 description = "Connection String with Password"
 regex = '''(?i)(password|passwd|pwd|secret)\s*[:=]\s*['"]?[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?]{6,}['"]?'''
 tags = ["credentials", "password"]
+
+  [rules.allowlist]
+  regexTarget = "line"
+  regexes = [
+    # Type annotations in dataclasses / Pydantic settings (colon, not equals)
+    '''(?i)(smtp|imap)[_-]?password\s*:\s*SecretStr''',
+    # Module-level test constant — value comes from os.environ, not a literal
+    '''_TEST_SECRET\s*=\s*SecretStr\(os\.environ''',
+    # Call sites that reference the constant (no string literal on the line)
+    '''(smtp|imap)_password\s*=\s*_TEST_SECRET''',
+  ]

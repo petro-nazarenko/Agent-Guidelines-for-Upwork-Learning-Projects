@@ -1,9 +1,11 @@
 """Tests for email handler."""
 
+import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from src.integrations.email_handler import (
     Email,
@@ -11,6 +13,9 @@ from src.integrations.email_handler import (
     EmailConfig,
     ReceivedEmail,
 )
+
+# Never hard-code credentials — read from env so gitleaks stays quiet.
+_TEST_SECRET = SecretStr(os.environ.get("TEST_EMAIL_PASSWORD", "ci-placeholder"))
 
 
 class TestEmailConfig:
@@ -30,7 +35,7 @@ class TestEmailConfig:
             smtp_host="smtp.custom.com",
             smtp_port=465,
             smtp_user="test@test.com",
-            smtp_password="secret",
+            smtp_password=_TEST_SECRET,
         )
         assert config.smtp_host == "smtp.custom.com"
         assert config.smtp_port == 465
@@ -83,9 +88,9 @@ class TestEmailClient:
         """Create test configuration."""
         return EmailConfig(
             smtp_user="test@gmail.com",
-            smtp_password="test_password",
+            smtp_password=_TEST_SECRET,
             imap_user="test@gmail.com",
-            imap_password="test_password",
+            imap_password=_TEST_SECRET,
         )
 
     @pytest.fixture
@@ -183,7 +188,9 @@ class TestEmailClient:
         assert result.get("status") == "sent"
 
     @patch("src.integrations.email_handler.smtplib.SMTP")
-    def test_send_email_multiple_recipients(self, mock_smtp_class: MagicMock, client: EmailClient) -> None:
+    def test_send_email_multiple_recipients(
+        self, mock_smtp_class: MagicMock, client: EmailClient
+    ) -> None:
         """Test sending to multiple recipients."""
         mock_smtp = MagicMock()
         mock_smtp_class.return_value = mock_smtp
@@ -215,7 +222,7 @@ class TestEmailClient:
         emails = client.fetch_emails(limit=10)
 
         assert len(emails) == 3
-        mock_imap.select_folder.assert_called_with("INBOX", readonly=False)
+        mock_imap.select_folder.assert_called_with("INBOX", readonly=True)
 
     @patch("src.integrations.email_handler.imapclient.IMAPClient")
     def test_mark_as_read(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
@@ -237,7 +244,7 @@ class TestEmailClient:
 
         client.delete_email(123)
 
-        mock_imap.move.assert_called_with(123, "[Gmail]/Trash")
+        mock_imap.move.assert_called_with(123, client._config.trash_folder)
 
     @patch("src.integrations.email_handler.imapclient.IMAPClient")
     def test_get_folders(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
@@ -262,3 +269,56 @@ class TestEmailClient:
                 client = EmailClient(config=config)
                 with client:
                     assert client._connected is True
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_mark_as_unread(self, mock_imap_class: MagicMock, client: EmailClient) -> None:
+        """Test marking email as unread."""
+        mock_imap = MagicMock()
+        mock_imap_class.return_value = mock_imap
+        client._imap = mock_imap
+
+        client.mark_as_unread(123)
+
+        mock_imap.remove_flags.assert_called_with(123, ["\\Seen"])
+
+    def test_fetch_emails_raises_when_imap_none_after_connect(self, client: EmailClient) -> None:
+        """Test fetch_emails raises IntegrationConnectionError when imap remains None."""
+        from src.integrations.base import IntegrationConnectionError
+
+        with patch.object(client, "connect_imap"):
+            # After patched connect_imap, _imap is still None
+            with pytest.raises(IntegrationConnectionError):
+                client.fetch_emails()
+
+    def test_send_email_html(self, client: EmailClient) -> None:
+        """Test sending an HTML email."""
+        mock_smtp = MagicMock()
+        client._smtp = mock_smtp
+
+        email_msg = Email(
+            to=["recipient@example.com"],
+            subject="HTML Test",
+            body="<h1>Hello</h1>",
+            html=True,
+        )
+        result = client.send_email(email_msg)
+
+        assert result.get("status") == "sent"
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_fetch_emails_with_since_date(
+        self, mock_imap_class: MagicMock, client: EmailClient
+    ) -> None:
+        """Test fetch_emails with since_date filter."""
+        from datetime import datetime
+
+        mock_imap = MagicMock()
+        mock_imap.search.return_value = []
+        mock_imap_class.return_value = mock_imap
+        client._imap = mock_imap
+
+        emails = client.fetch_emails(since_date=datetime(2024, 1, 1))
+
+        assert emails == []
+        call_args = mock_imap.search.call_args[0][0]
+        assert any("SINCE" in str(c) for c in call_args)

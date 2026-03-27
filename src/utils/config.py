@@ -3,7 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,7 +17,7 @@ class GoogleSheetsSettings(BaseSettings):
     )
 
     credentials_path: Path = Field(
-        default=Path("config/credentials.json"),
+        default=Path.home() / ".config" / "upwork-learn" / "credentials.json",
         description="Path to Google service account credentials JSON",
     )
     spreadsheet_id: str | None = Field(
@@ -39,12 +39,12 @@ class EmailSettings(BaseSettings):
     smtp_host: str = Field(default="smtp.gmail.com")
     smtp_port: int = Field(default=587)
     smtp_user: str | None = Field(default=None)
-    smtp_password: str | None = Field(default=None)
+    smtp_password: SecretStr | None = Field(default=None)
 
     imap_host: str = Field(default="imap.gmail.com")
     imap_port: int = Field(default=993)
     imap_user: str | None = Field(default=None)
-    imap_password: str | None = Field(default=None)
+    imap_password: SecretStr | None = Field(default=None)
 
     @field_validator("smtp_port", "imap_port")
     @classmethod
