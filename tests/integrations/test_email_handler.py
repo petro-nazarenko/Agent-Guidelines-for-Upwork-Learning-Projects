@@ -322,3 +322,128 @@ class TestEmailClient:
         assert emails == []
         call_args = mock_imap.search.call_args[0][0]
         assert any("SINCE" in str(c) for c in call_args)
+
+
+class TestIMapValidators:
+    """Tests for the static IMAP safety helpers added in fix 2.4."""
+
+    def test_validate_folder_name_valid(self) -> None:
+        EmailClient._validate_folder_name("INBOX")
+        EmailClient._validate_folder_name("[Gmail]/Sent Mail")
+
+    def test_validate_folder_name_rejects_crlf(self) -> None:
+        with pytest.raises(ValueError, match="unsafe"):
+            EmailClient._validate_folder_name("INBOX\r\nA1 LOGOUT")
+
+    def test_validate_folder_name_rejects_newline(self) -> None:
+        with pytest.raises(ValueError, match="unsafe"):
+            EmailClient._validate_folder_name("INBOX\nINJECT")
+
+    def test_validate_folder_name_rejects_null(self) -> None:
+        with pytest.raises(ValueError, match="unsafe"):
+            EmailClient._validate_folder_name("INBOX\x00")
+
+    def test_safe_imap_date_valid(self) -> None:
+        from datetime import datetime
+
+        result = EmailClient._safe_imap_date(datetime(2026, 1, 15))
+        assert result == "15-Jan-2026"
+
+    def test_fetch_emails_rejects_unsafe_folder(self) -> None:
+        client = EmailClient()
+        mock_imap = MagicMock()
+        client._imap = mock_imap
+
+        with pytest.raises(ValueError, match="unsafe"):
+            client.fetch_emails(folder="INBOX\r\nLOGOUT")
+
+
+class TestEmailClientErrorPaths:
+    """Tests for error handling in SMTP / IMAP operations."""
+
+    @pytest.fixture
+    def config(self) -> EmailConfig:
+        return EmailConfig(
+            smtp_user="test@gmail.com",
+            smtp_password=_TEST_SECRET,
+            imap_user="test@gmail.com",
+            imap_password=_TEST_SECRET,
+        )
+
+    @pytest.fixture
+    def client(self, config: EmailConfig) -> EmailClient:
+        return EmailClient(config=config)
+
+    @patch("src.integrations.email_handler.smtplib.SMTP")
+    def test_connect_smtp_auth_error_raises_authentication_error(
+        self, mock_smtp_class: MagicMock, client: EmailClient
+    ) -> None:
+        import smtplib
+
+        from src.integrations.base import AuthenticationError
+
+        mock_smtp = MagicMock()
+        mock_smtp.starttls.return_value = None
+        mock_smtp.ehlo.return_value = None
+        mock_smtp.login.side_effect = smtplib.SMTPAuthenticationError(535, b"Auth failed")
+        mock_smtp_class.return_value = mock_smtp
+
+        with pytest.raises(AuthenticationError):
+            client.connect_smtp()
+
+    @patch("src.integrations.email_handler.smtplib.SMTP")
+    def test_connect_smtp_generic_error_raises_connection_error(
+        self, mock_smtp_class: MagicMock, client: EmailClient
+    ) -> None:
+        import smtplib
+
+        from src.integrations.base import IntegrationConnectionError
+
+        mock_smtp_class.side_effect = smtplib.SMTPException("connection refused")
+
+        with pytest.raises(IntegrationConnectionError):
+            client.connect_smtp()
+
+    def test_disconnect_smtp_swallows_quit_exception(self, client: EmailClient) -> None:
+        mock_smtp = MagicMock()
+        mock_smtp.quit.side_effect = Exception("already disconnected")
+        client._smtp = mock_smtp
+
+        client.disconnect_smtp()  # must not raise
+        assert client._smtp is None
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_connect_imap_login_error_raises_authentication_error(
+        self, mock_imap_class: MagicMock, client: EmailClient
+    ) -> None:
+        import imapclient.exceptions
+
+        from src.integrations.base import AuthenticationError
+
+        mock_imap = MagicMock()
+        mock_imap.login.side_effect = imapclient.exceptions.LoginError("Bad credentials")
+        mock_imap_class.return_value = mock_imap
+
+        with pytest.raises(AuthenticationError):
+            client.connect_imap()
+
+    @patch("src.integrations.email_handler.imapclient.IMAPClient")
+    def test_connect_imap_gaierror_raises_connection_error(
+        self, mock_imap_class: MagicMock, client: EmailClient
+    ) -> None:
+        import socket
+
+        from src.integrations.base import IntegrationConnectionError
+
+        mock_imap_class.side_effect = socket.gaierror("Name not resolved")
+
+        with pytest.raises(IntegrationConnectionError):
+            client.connect_imap()
+
+    def test_disconnect_imap_swallows_logout_exception(self, client: EmailClient) -> None:
+        mock_imap = MagicMock()
+        mock_imap.logout.side_effect = Exception("already gone")
+        client._imap = mock_imap
+
+        client.disconnect_imap()  # must not raise
+        assert client._imap is None

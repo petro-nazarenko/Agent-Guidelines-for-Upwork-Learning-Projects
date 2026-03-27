@@ -179,7 +179,7 @@ class EmailClient(BaseIntegration):
                 host=self._config.imap_host,
                 port=self._config.imap_port,
             )
-        except imapclient.LoginError as e:
+        except imapclient.exceptions.LoginError as e:
             raise AuthenticationError(f"IMAP authentication failed: {e}") from e
         except socket.gaierror as e:
             raise IntegrationConnectionError(f"IMAP connection failed: {e}") from e
