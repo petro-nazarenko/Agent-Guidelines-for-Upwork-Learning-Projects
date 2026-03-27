@@ -36,10 +36,9 @@ def sheets_read(
 ) -> None:
     """Read data from Google Sheets."""
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         with client:
@@ -69,10 +68,9 @@ def sheets_write(
     import json
 
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         data = json.loads(values)
@@ -97,10 +95,9 @@ def sheets_list(
 ) -> None:
     """List worksheets in a spreadsheet."""
     try:
-        config = GoogleSheetsConfig(
-            credentials_path=Path(credentials_path or 'config/credentials.json'),
-            spreadsheet_id=spreadsheet_id,
-        )
+        config = GoogleSheetsConfig(spreadsheet_id=spreadsheet_id)
+        if credentials_path:
+            config.credentials_path = Path(credentials_path)
         client = GoogleSheetsClient(config=config)
 
         with client:

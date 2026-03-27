@@ -17,7 +17,7 @@ class GoogleSheetsSettings(BaseSettings):
     )
 
     credentials_path: Path = Field(
-        default=Path("config/credentials.json"),
+        default=Path.home() / ".config" / "upwork-learn" / "credentials.json",
         description="Path to Google service account credentials JSON",
     )
     spreadsheet_id: str | None = Field(
