@@ -282,6 +282,13 @@ def email_fetch(
 
 def main() -> None:
     """Main entry point."""
+    import logging as _logging
+
+    from src.utils.config import load_config
+    from src.utils.logger import configure_logging
+
+    cfg = load_config()
+    configure_logging(getattr(_logging, cfg.app.log_level, _logging.INFO))
     app()
 
 
