@@ -8,6 +8,7 @@ import email.mime.base
 import email.mime.multipart
 import email.mime.text
 import email.utils
+import re
 import smtplib
 import socket
 from dataclasses import dataclass, field
@@ -29,6 +30,15 @@ from src.utils.logger import get_logger
 from src.utils.retry import with_retry
 
 logger = get_logger(__name__)
+
+# IMAP date token is strictly DD-Mon-YYYY (e.g. 01-Jan-2026).
+# Any deviation would indicate the datetime was manipulated or strftime behaved
+# unexpectedly, so we reject it early rather than let it reach the server.
+_IMAP_DATE_RE = re.compile(
+    r"^\d{2}-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}$"
+)
+# Characters that must never appear in an IMAP mailbox name sent over the wire.
+_FOLDER_UNSAFE_RE = re.compile(r"[\r\n\x00]")
 
 
 class EmailTemplateProtocol(Protocol):
@@ -169,7 +179,7 @@ class EmailClient(BaseIntegration):
                 host=self._config.imap_host,
                 port=self._config.imap_port,
             )
-        except imapclient.LoginError as e:
+        except imapclient.exceptions.LoginError as e:
             raise AuthenticationError(f"IMAP authentication failed: {e}") from e
         except socket.gaierror as e:
             raise IntegrationConnectionError(f"IMAP connection failed: {e}") from e
@@ -272,6 +282,34 @@ class EmailClient(BaseIntegration):
 
         return msg
 
+    @staticmethod
+    def _safe_imap_date(dt: datetime) -> str:
+        """Return a safe IMAP date string for a SEARCH SINCE criterion.
+
+        Raises:
+            ValueError: if the formatted string doesn't match the strict
+                ``DD-Mon-YYYY`` pattern expected by the IMAP protocol.
+        """
+        formatted = dt.strftime("%d-%b-%Y")
+        if not _IMAP_DATE_RE.match(formatted):
+            raise ValueError(f"Invalid IMAP date format produced: {formatted!r}")
+        return formatted
+
+    @staticmethod
+    def _validate_folder_name(folder: str) -> None:
+        """Reject folder names that contain CRLF or null bytes.
+
+        imapclient quotes mailbox names, but an explicit check here stops a
+        malformed folder string from reaching the socket at all.
+
+        Raises:
+            ValueError: if *folder* contains unsafe characters.
+        """
+        if _FOLDER_UNSAFE_RE.search(folder):
+            raise ValueError(
+                f"Folder name contains unsafe characters: {folder!r}"
+            )
+
     def fetch_emails(
         self,
         folder: str = "INBOX",
@@ -295,6 +333,8 @@ class EmailClient(BaseIntegration):
         if self._imap is None:
             raise IntegrationConnectionError("IMAP connection is not established")
 
+        self._validate_folder_name(folder)
+
         try:
             self._imap.select_folder(folder, readonly=True)
 
@@ -302,7 +342,7 @@ class EmailClient(BaseIntegration):
             if unread_only:
                 search_criteria = ["UNSEEN"]
             if since_date:
-                search_criteria.append(f"SINCE {since_date.strftime('%d-%b-%Y')}")
+                search_criteria.append(f"SINCE {self._safe_imap_date(since_date)}")
 
             message_ids = self._imap.search(search_criteria)
 

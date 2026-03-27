@@ -5,7 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.integrations.base import AuthenticationError, IntegrationConnectionError
 from src.integrations.google_sheets import (
+    CellRange,
     GoogleSheetsClient,
     GoogleSheetsConfig,
     WriteOptions,
@@ -282,3 +284,145 @@ class TestGoogleSheetsClient:
 
         with pytest.raises(IntegrationConnectionError):
             client.open_spreadsheet("test_id")
+
+
+class TestCellRange:
+    def test_to_a1_notation(self) -> None:
+        cr = CellRange(sheet_name="Sheet1", start_row=1, end_row=3, start_col=1, end_col=3)
+        result = cr.to_a1_notation()
+        assert result == "Sheet1!A1:C3"
+
+
+class TestGoogleSheetsConnectErrors:
+    @pytest.fixture
+    def client(self) -> GoogleSheetsClient:
+        config = GoogleSheetsConfig(
+            credentials_path=Path("tests/fixtures/credentials.json"),
+        )
+        return GoogleSheetsClient(config=config)
+
+    def test_connect_file_not_found_raises_authentication_error(
+        self, client: GoogleSheetsClient
+    ) -> None:
+        config = GoogleSheetsConfig(
+            credentials_path=Path("/nonexistent/credentials.json"),
+        )
+        c = GoogleSheetsClient(config=config)
+        with pytest.raises(AuthenticationError):
+            c.connect()
+
+    def test_connect_generic_error_raises_connection_error(
+        self, client: GoogleSheetsClient
+    ) -> None:
+        with patch("src.integrations.google_sheets.gspread.authorize") as mock_auth:
+            mock_auth.side_effect = RuntimeError("API down")
+            with pytest.raises(IntegrationConnectionError):
+                client.connect()
+
+    def test_open_spreadsheet_no_id_raises_value_error(self, client: GoogleSheetsClient) -> None:
+        with pytest.raises(ValueError, match="No spreadsheet_id"):
+            client.open_spreadsheet(None)
+
+    def test_open_spreadsheet_spreadsheet_not_found_reraises(
+        self, client: GoogleSheetsClient
+    ) -> None:
+        from gspread.exceptions import SpreadsheetNotFound
+
+        mock_gspread_client = MagicMock()
+        mock_gspread_client.open_by_key.side_effect = SpreadsheetNotFound
+        client._client = mock_gspread_client
+
+        with pytest.raises(SpreadsheetNotFound):
+            client.open_spreadsheet("missing-id")
+
+    def test_open_spreadsheet_api_error_raises_connection_error(
+        self, client: GoogleSheetsClient
+    ) -> None:
+        import gspread
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"error": {"code": 403, "message": "Forbidden"}}
+        mock_response.text = '{"error": {"code": 403, "message": "Forbidden"}}'
+        mock_response.status_code = 403
+        api_error = gspread.exceptions.APIError(mock_response)
+
+        mock_gspread_client = MagicMock()
+        mock_gspread_client.open_by_key.side_effect = api_error
+        client._client = mock_gspread_client
+
+        with pytest.raises(IntegrationConnectionError):
+            client.open_spreadsheet("sheet-id")
+
+
+class TestGoogleSheetsMethodErrors:
+    """Test that per-method operations propagate errors correctly."""
+
+    @pytest.fixture
+    def client_with_mock_spreadsheet(self) -> GoogleSheetsClient:
+        config = GoogleSheetsConfig(spreadsheet_id="sid")
+        c = GoogleSheetsClient(config=config)
+        c._spreadsheet = MagicMock()
+        return c
+
+    def test_read_range_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.values_get.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "network error"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.read_range("Sheet1!A1:B2")
+
+    def test_write_range_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.values_update.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "write failed"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.write_range("Sheet1!A1", [["v"]])
+
+    def test_append_row_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.worksheet.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "worksheet missing"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.append_row(["a", "b"])
+
+    def test_batch_write_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.values_batch_update.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "batch failed"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.batch_write([{"range": "Sheet1!A1", "values": [["v"]]}])
+
+    def test_create_worksheet_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.add_worksheet.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "quota exceeded"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.create_worksheet("NewSheet")
+
+    def test_delete_worksheet_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.worksheet.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "not found"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.delete_worksheet("OldSheet")
+
+    def test_clear_sheet_propagates_error(
+        self, client_with_mock_spreadsheet: GoogleSheetsClient
+    ) -> None:
+        client_with_mock_spreadsheet._spreadsheet.worksheet.side_effect = RuntimeError(  # type: ignore[union-attr]
+            "sheet missing"
+        )
+        with pytest.raises(RuntimeError):
+            client_with_mock_spreadsheet.clear_sheet("Sheet1")
