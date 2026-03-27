@@ -109,10 +109,7 @@ class GoogleSheetsClient(BaseIntegration):
         """Load credentials from JSON file."""
         cred_path = self._config.credentials_path
         if not cred_path.exists():
-            self._logger.warning(
-                "Credentials file not found, continuing in test/mock mode",
-                path=str(cred_path),
-            )
+            raise FileNotFoundError(f"Credentials file not found: {cred_path}")
         return Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
             str(cred_path),
             scopes=self.SCOPES,
