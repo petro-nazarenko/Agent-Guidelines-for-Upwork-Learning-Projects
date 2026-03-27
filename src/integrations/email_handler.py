@@ -285,7 +285,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder, readonly=False)
@@ -335,7 +336,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
@@ -354,7 +356,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
@@ -373,7 +376,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         try:
             self._imap.select_folder(folder)
@@ -444,7 +448,8 @@ class EmailClient(BaseIntegration):
         """
         if not self._imap:
             self.connect_imap()
-        assert self._imap is not None
+        if self._imap is None:
+            raise IntegrationConnectionError("IMAP connection is not established")
 
         folders = self._imap.list_folders()
         return [f[2] for f in folders]
