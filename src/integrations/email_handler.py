@@ -211,7 +211,7 @@ class EmailClient(BaseIntegration):
         try:
             msg = self._build_message(email_msg)
             if not self._smtp:
-                raise ConnectionError("SMTP connection is not established")
+                raise IntegrationConnectionError("SMTP connection is not established")
 
             _ = self._smtp.send_message(
                 msg,
@@ -277,7 +277,7 @@ class EmailClient(BaseIntegration):
             part = email.mime.base.MIMEBase(mime_type.split("/")[0], mime_type.split("/")[1])
             part.set_payload(content)
             email.encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f"attachment; filename={filename}")
+            part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
             msg.attach(part)
 
         return msg
